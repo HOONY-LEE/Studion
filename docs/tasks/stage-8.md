@@ -264,7 +264,7 @@ Text("\(subjectName) 과목", comment: "과목 상세 화면 제목")
 - **Dynamic Type AX5**에서 설정 Form의 Picker·행이 깨지지 않는지. 가로가 좁아지는 행은 `ViewThatFits`로 세로 대안을 준다.
 - **다크모드**에서 전 화면을 다시 훑는다. 커스텀 색상(`GoalAchieved`, `ScheduleSchool`, `ScheduleAcademy`)이 Light/Dark 둘 다 정의되어 있는지 확인한다.
 - 아이콘 전용 버튼에 `.accessibilityLabel`이 있는지, 터치 타깃이 44×44pt 이상인지.
-- **목표 미달을 빨간색으로 표시하지 않는다.** red는 5-7의 덮어쓰기 확인에서만.
+- **목표 미달을 의미색으로 표시하지 않는다** (뉴트럴 그레이). 덮어쓰기 확인은 색이 아니라 아이콘·문구·확인 다이얼로그로 파괴성을 드러낸다.
 
 ## 6. 수용 기준
 
