@@ -1,0 +1,30 @@
+# project.yml에서 생성되는 산출물이다 (xcodegen generate)
+Studion.xcodeproj/
+Studion/Info.plist
+
+# Xcode
+build/
+DerivedData/
+*.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+
+# 비밀값 — 절대 커밋하지 않는다
+*.p12
+*.mobileprovision
+*.cer
+.env
+.env.local
+secrets.xcconfig
+
+# macOS
+.DS_Store
