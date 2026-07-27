@@ -17,6 +17,11 @@ final class Semester {
         set { gradingSystemTypeRaw = newValue.rawValue }
     }
 
+    /// 학기 선택 UI에 표시할 이름 (예: "2025학년도 1학기").
+    var displayName: String {
+        String(localized: "\(String(year))학년도 \(term)학기")
+    }
+
     init(year: Int = 2025, term: Int = 1, gradingSystemType: GradingSystemType = .fiveTier) {
         self.year = year
         self.term = term

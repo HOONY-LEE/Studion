@@ -1,15 +1,38 @@
 import SwiftUI
 
-/// 성적 탭. 내신/모의고사 세그먼트는 3·4단계에서 채운다.
+/// 성적 탭. 최상단 세그먼트로 내신/모의고사를 전환한다.
 struct GradesView: View {
+    private enum Tab: Hashable {
+        case school, mockExam
+    }
+
+    @State private var tab: Tab = .school
+
     var body: some View {
         NavigationStack {
-            EmptyStateView(
-                systemImage: "book.closed",
-                title: "아직 성적 기록이 없어요",
-                message: "이수 과목을 추가해 성적을 관리해 보세요."
-            )
+            Group {
+                switch tab {
+                case .school:
+                    SemesterListView()
+                case .mockExam:
+                    // 모의고사 서브탭은 4단계에서 구현한다.
+                    EmptyStateView(
+                        systemImage: "chart.line.uptrend.xyaxis",
+                        title: "첫 모의고사 회차를 추가해 보세요",
+                        message: "모의고사 기록은 다음 단계에서 추가됩니다."
+                    )
+                }
+            }
             .navigationTitle("성적")
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Picker("성적 구분", selection: $tab) {
+                        Text("내신").tag(Tab.school)
+                        Text("모의고사").tag(Tab.mockExam)
+                    }
+                    .pickerStyle(.segmented)
+                }
+            }
         }
     }
 }

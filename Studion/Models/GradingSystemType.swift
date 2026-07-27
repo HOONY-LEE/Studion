@@ -20,6 +20,13 @@ enum GradingSystemType: String, Codable, CaseIterable, Identifiable {
     }
 
     var tierCount: Int { cumulativeBoundaries.count }
+
+    var displayName: String {
+        switch self {
+        case .fiveTier: String(localized: "5등급제")
+        case .nineTier: String(localized: "9등급제")
+        }
+    }
 }
 
 /// 내신 과목의 등급 산출 방식.
