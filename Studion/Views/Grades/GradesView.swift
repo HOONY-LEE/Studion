@@ -15,12 +15,7 @@ struct GradesView: View {
                 case .school:
                     SemesterListView()
                 case .mockExam:
-                    // 모의고사 서브탭은 4단계에서 구현한다.
-                    EmptyStateView(
-                        systemImage: "chart.line.uptrend.xyaxis",
-                        title: "첫 모의고사 회차를 추가해 보세요",
-                        message: "모의고사 기록은 다음 단계에서 추가됩니다."
-                    )
+                    MockExamListView()
                 }
             }
             .navigationTitle("성적")

@@ -110,14 +110,23 @@ struct SemesterListView: View {
                         }
                     } else {
                         ForEach(subjects) { record in
-                            Button {
-                                subjectToEdit = record
+                            NavigationLink {
+                                SubjectDetailView(record: record)
                             } label: {
                                 SubjectRow(record: record)
                             }
-                            .buttonStyle(.plain)
+                            .swipeActions(edge: .leading) {
+                                Button("편집") { subjectToEdit = record }
+                                    .tint(.accentColor)
+                            }
                         }
                         .onDelete(perform: deleteSubjects)
+
+                        NavigationLink {
+                            GoalProgressView(semester: selectedSemester)
+                        } label: {
+                            Label("목표 대비 진척 보기", systemImage: "target")
+                        }
                     }
                 } header: {
                     semesterHeader(selectedSemester)
