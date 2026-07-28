@@ -62,7 +62,7 @@ struct MockExamSubjectFormView: View {
 
     /// `LabeledContent` 대신 `HStack`을 쓰는 이유는 `SubjectFormView`와 같다 —
     /// 빈 `TextField`의 탭 영역이 최소 터치 타깃보다 좁아지는 것을 막는다.
-    private func numberField(_ title: String, text: Binding<String>) -> some View {
+    private func numberField(_ title: LocalizedStringKey, text: Binding<String>) -> some View {
         HStack {
             Text(title)
             TextField("선택", text: text)

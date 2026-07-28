@@ -68,18 +68,22 @@ private struct MockExamSubjectRow: View {
     let record: MockExamSubjectRecord
 
     /// 입력되지 않은 값은 표시하지 않는다. 0으로 대체하지 않는다.
-    private var detailText: String {
-        var parts: [String] = []
+    ///
+    /// `Text`를 이어붙이는 방식을 쓴다 — 라벨 부분을 먼저 `String`으로 합쳐버리면
+    /// (`parts.joined(separator:)`) 로컬라이징 조회가 깨진다.
+    private var detailText: Text? {
+        var parts: [Text] = []
         if let rawScore = record.rawScore {
-            parts.append("원점수 \(rawScore.formatted(.number.precision(.fractionLength(0...1))))")
+            parts.append(Text("원점수 \(rawScore.formatted(.number.precision(.fractionLength(0...1))))"))
         }
         if let standardScore = record.standardScore {
-            parts.append("표준 \(standardScore.formatted(.number.precision(.fractionLength(0...1))))")
+            parts.append(Text("표준 \(standardScore.formatted(.number.precision(.fractionLength(0...1))))"))
         }
         if let percentile = record.percentile {
-            parts.append("백분위 \(percentile.formatted(.number.precision(.fractionLength(0...1))))")
+            parts.append(Text("백분위 \(percentile.formatted(.number.precision(.fractionLength(0...1))))"))
         }
-        return parts.joined(separator: " · ")
+        guard let first = parts.first else { return nil }
+        return parts.dropFirst().reduce(first) { $0 + Text(verbatim: " · ") + $1 }
     }
 
     var body: some View {
@@ -87,8 +91,8 @@ private struct MockExamSubjectRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.subjectName)
                     .font(.body)
-                if !detailText.isEmpty {
-                    Text(detailText)
+                if let detailText {
+                    detailText
                         .font(.caption)
                         .monospacedDigit()
                         .foregroundStyle(.secondary)

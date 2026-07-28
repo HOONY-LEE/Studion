@@ -123,9 +123,9 @@ struct SubjectFormView: View {
     /// 최소 터치 타깃(44×44pt)을 만족하지 못한다. `HStack`에서 `TextField`가 남는 폭을
     /// 모두 차지하게 두어 행 오른쪽 전체를 탭할 수 있게 한다.
     private func numberField(
-        _ title: String,
+        _ title: LocalizedStringKey,
         text: Binding<String>,
-        prompt: String = "선택",
+        prompt: LocalizedStringKey = "선택",
         keyboard: UIKeyboardType = .decimalPad
     ) -> some View {
         HStack {
@@ -136,7 +136,7 @@ struct SubjectFormView: View {
         }
     }
 
-    private func gradePicker(_ title: String, selection: Binding<Int?>) -> some View {
+    private func gradePicker(_ title: LocalizedStringKey, selection: Binding<Int?>) -> some View {
         Picker(title, selection: selection) {
             Text("선택 안 함").tag(Int?.none)
             ForEach(1...system.tierCount, id: \.self) { grade in

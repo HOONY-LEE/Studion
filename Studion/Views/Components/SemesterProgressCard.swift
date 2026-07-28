@@ -37,9 +37,10 @@ struct SemesterProgressCard: View {
                 }
                 .foregroundStyle(item.isAchieved ? Color("GoalAchieved") : .secondary)
                 .accessibilityElement(children: .ignore)
+                // 리터럴을 호출부에서 직접 쓴다 — String 변수에 먼저 담아 `+`로 이어붙이면
+                // LocalizedStringKey 추론이 깨져 로컬라이징 조회가 일어나지 않는다.
                 .accessibilityLabel(
-                    "\(item.name), 현재 \(item.actual)등급, 목표 \(item.target)등급, "
-                    + (item.isAchieved ? "달성" : "미달")
+                    "\(item.name), 현재 \(item.actual)등급, 목표 \(item.target)등급, \(item.isAchieved ? String(localized: "달성") : String(localized: "미달"))"
                 )
             }
 

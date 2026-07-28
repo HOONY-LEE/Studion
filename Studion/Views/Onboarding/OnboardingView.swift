@@ -103,8 +103,8 @@ struct OnboardingView: View {
 
     private func stepScaffold<Content: View>(
         icon: String,
-        title: String,
-        message: String,
+        title: LocalizedStringKey,
+        message: LocalizedStringKey,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(spacing: 16) {

@@ -4,9 +4,11 @@ import SwiftUI
 /// 아이콘 → 제목 → 설명 → (선택) 기본 동작 버튼 1개 구조를 갖는다.
 struct EmptyStateView: View {
     let systemImage: String
-    let title: String
-    let message: String
-    var actionTitle: String?
+    /// `LocalizedStringKey`여야 한다. `String`으로 받으면 `Text(title)`이
+    /// 검증 없는 verbatim 문자열 이니셜라이저로 해석되어 로컬라이징 조회가 아예 일어나지 않는다.
+    let title: LocalizedStringKey
+    let message: LocalizedStringKey
+    var actionTitle: LocalizedStringKey?
     var action: (() -> Void)?
 
     var body: some View {

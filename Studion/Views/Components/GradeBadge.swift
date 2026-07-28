@@ -15,14 +15,6 @@ struct GradeBadge: View {
     /// 목표를 달성했는지. `nil`이면 목표가 설정되지 않은 상태다.
     var isGoalAchieved: Bool?
 
-    private var text: String {
-        switch content {
-        case .grade(let value): "\(value)등급"
-        case .achievement(let level): level.rawValue
-        case .none: "—"
-        }
-    }
-
     private var foreground: Color {
         // 미달을 빨간색으로 강조하지 않는다. 달성은 그린, 그 외는 뉴트럴.
         isGoalAchieved == true ? Color("GoalAchieved") : .secondary
@@ -35,20 +27,43 @@ struct GradeBadge: View {
                     .font(.caption)
                     .accessibilityHidden(true)
             }
-            Text(text)
+            gradeText
                 .font(.subheadline.weight(.medium))
                 .monospacedDigit()
         }
         .foregroundStyle(foreground)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityText)
+        .accessibilityLabel(accessibilityLabel)
     }
 
-    private var accessibilityText: String {
-        switch isGoalAchieved {
-        case true: "\(text), 목표 달성"
-        case false: "\(text), 목표 미달"
-        default: text
+    /// 문자열 보간을 `String` 프로퍼티에 먼저 담지 않고 `Text` 호출부에서 직접 한다.
+    /// 그래야 컴파일러가 `LocalizedStringKey`로 추론해 String Catalog의
+    /// `"%lld등급"` 같은 포맷 키를 조회한다 — 미리 `String`으로 만들면 이 조회가 깨진다.
+    @ViewBuilder
+    private var gradeText: some View {
+        switch content {
+        case .grade(let value):
+            Text("\(value)등급")
+        case .achievement(let level):
+            // 성취도 A~E는 언어와 무관한 기호이므로 로컬라이징 대상이 아니다.
+            Text(verbatim: level.rawValue)
+        case .none:
+            Text(verbatim: "—")
+        }
+    }
+
+    private var accessibilityLabel: Text {
+        switch (content, isGoalAchieved) {
+        case (.grade(let value), true):
+            Text("\(value)등급, 목표 달성")
+        case (.grade(let value), false):
+            Text("\(value)등급, 목표 미달")
+        case (.grade(let value), nil):
+            Text("\(value)등급")
+        case (.achievement(let level), _):
+            Text(verbatim: level.rawValue)
+        case (.none, _):
+            Text(verbatim: "—")
         }
     }
 }

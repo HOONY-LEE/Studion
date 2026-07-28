@@ -5,6 +5,10 @@ options:
     iOS: "17.0"
   createIntermediateGroups: true
   generateEmptyDirectories: false
+  # Localizable.xcstrings의 sourceLanguage("ko")와 맞춘다.
+  # 어긋나면 tabItem 같은 네이티브(UIKit) 라벨이 시스템 언어와 무관하게
+  # 항상 en.lproj로 떨어져 언어가 뒤섞여 보인다.
+  developmentLanguage: ko
 
 configs:
   Debug: debug
