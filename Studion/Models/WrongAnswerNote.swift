@@ -24,6 +24,14 @@ final class WrongAnswerNote {
     var schoolSubject: SchoolSubjectRecord?
     var mockExamSubject: MockExamSubjectRecord?
 
+    /// 사용자가 "객관식으로 저장"을 확인했는지. 선택지 자체는 별도로 저장하지 않고
+    /// `userEditedText`에서 `MultipleChoiceParser`로 그때그때 다시 뽑아낸다 —
+    /// 텍스트를 나중에 고쳐도 선택지가 따로 놀며 어긋나는 상태가 생기지 않는다.
+    var isMultipleChoice: Bool = false
+    /// 정답 선택지의 0-based 인덱스. 사용자가 직접 지정하며, 모르면 비워둔다.
+    /// 앱이 정답을 추정하거나 만들어내지 않는다.
+    var correctChoiceIndex: Int?
+
     var causeTag: WrongAnswerCauseTag {
         get { WrongAnswerCauseTag(rawValue: causeTagRaw) ?? .dontKnow }
         set { causeTagRaw = newValue.rawValue }

@@ -10,6 +10,7 @@ struct WrongAnswerCard: View {
     let englishSubcategory: EnglishSubcategory?
     let isDue: Bool
     let imageData: Data?
+    var isMultipleChoice: Bool = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -29,6 +30,9 @@ struct WrongAnswerCard: View {
                     .multilineTextAlignment(.leading)
 
                 HStack(spacing: 6) {
+                    if isMultipleChoice {
+                        tagChip(String(localized: "객관식"))
+                    }
                     tagChip(causeTag.displayName)
                     if let englishSubcategory {
                         tagChip(englishSubcategory.displayName)
@@ -59,7 +63,9 @@ struct WrongAnswerCard: View {
     }
 
     private var accessibilityText: String {
-        var parts = [text, causeTag.displayName]
+        var parts = [text]
+        if isMultipleChoice { parts.append(String(localized: "객관식")) }
+        parts.append(causeTag.displayName)
         if let englishSubcategory { parts.append(englishSubcategory.displayName) }
         if isDue { parts.append(String(localized: "복습할 차례")) }
         return parts.joined(separator: ", ")

@@ -136,7 +136,8 @@ struct SubjectDetailView: View {
                             isDue: ReviewScheduler.isDue(
                                 nextReviewDate: note.nextReviewDate, on: Date(), calendar: calendar
                             ),
-                            imageData: note.imageData
+                            imageData: note.imageData,
+                            isMultipleChoice: note.isMultipleChoice
                         )
                     }
                     .buttonStyle(.plain)

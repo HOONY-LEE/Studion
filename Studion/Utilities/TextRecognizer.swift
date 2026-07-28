@@ -56,13 +56,22 @@ enum TextRecognizer {
         return CGImageSourceCreateImageAtIndex(source, 0, nil)
     }
 
-    /// 관찰 결과를 화면상 위에서 아래 순서로 정렬해 줄 단위로 잇는다.
+    /// 관찰 결과에서 페이지 번호·머리말/꼬리말로 추정되는 블록을 걸러낸 뒤,
+    /// 화면상 위에서 아래 순서로 정렬해 줄 단위로 잇는다.
     ///
     /// Vision의 좌표계는 좌하단 원점이므로 `boundingBox.minY`가 클수록 위쪽이다.
+    ///
+    /// - Important: 이 필터링은 휴리스틱이라 완벽하지 않다. 그래서 사용자가 결과를
+    ///   확인·수정하는 단계(`WrongAnswerFormView`)를 항상 거치게 한다.
     private static func joinLines(from observations: [VNRecognizedTextObservation]) -> String {
-        observations
+        let blocks = observations.compactMap { observation -> OCRTextFilter.RecognizedTextBlock? in
+            guard let text = observation.topCandidates(1).first?.string else { return nil }
+            return OCRTextFilter.RecognizedTextBlock(text: text, boundingBox: observation.boundingBox)
+        }
+
+        return OCRTextFilter.filterDistractions(blocks)
             .sorted { $0.boundingBox.minY > $1.boundingBox.minY }
-            .compactMap { $0.topCandidates(1).first?.string }
+            .map(\.text)
             .joined(separator: "\n")
     }
 }
