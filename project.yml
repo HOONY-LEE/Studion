@@ -42,6 +42,9 @@ targets:
         # 오답노트용. 사진은 기기 안에서만 분석되며 외부로 전송되지 않는다.
         NSCameraUsageDescription: 틀린 문제를 찍어 오답노트를 만들 때 사용합니다. 사진은 기기 안에서만 분석되며 외부로 전송되지 않습니다.
         NSPhotoLibraryUsageDescription: 저장된 문제 사진으로 오답노트를 만들 때 사용합니다. 사진은 기기 안에서만 분석되며 외부로 전송되지 않습니다.
+        # CloudKit 원격 변경 수신용
+        UIBackgroundModes:
+          - remote-notification
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.studion.app
@@ -51,8 +54,15 @@ targets:
         # 실기기 빌드용 서명. 시뮬레이터는 서명 없이도 동작한다.
         DEVELOPMENT_TEAM: 2J399JB6Q6
         CODE_SIGN_STYLE: Automatic
-    # CloudKit entitlement (iCloud 컨테이너 연결)은 7단계(Sign in with Apple + CloudKit 동기화)에서
-    # 실제 개발자 팀 ID로 추가한다. 지금은 SwiftData 스키마만 CloudKit 호환 형태로 설계해둔다.
+    entitlements:
+      path: Studion/Studion.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.studion.app
+        com.apple.developer.icloud-services:
+          - CloudKit
+        com.apple.developer.applesignin:
+          - Default
 
   StudionTests:
     type: bundle.unit-test
