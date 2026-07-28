@@ -178,7 +178,7 @@ PlanItem         (독립)
 | `userEditedText` | `String` | `""` | 사용자가 확인·수정한 최종 텍스트. **표시에는 이 값을 쓴다** |
 | `causeTagRaw` | `String` | `dontKnow` | 오답 원인 |
 | `englishSubcategoryRaw` | `String?` | nil | 영어 과목에서만 사용 |
-| `imageFileName` | `String?` | nil | 앱 문서 디렉터리 내 파일명. **경로 전체를 저장하지 않는다**(앱 컨테이너 경로는 재설치·기기변경 시 바뀜) |
+| `imageData` | `Data?` | nil | `@Attribute(.externalStorage)`. SwiftData가 파일로 분리 저장하고 CloudKit이 자산으로 동기화한다 |
 | `createdAt` | `Date` | `Date()` | |
 | `leitnerBoxIndex` | `Int` | `0` | 0~4 |
 | `nextReviewDate` | `Date` | `Date()` | 복습 알림 스케줄 기준 |
@@ -190,7 +190,8 @@ PlanItem         (독립)
 
 **Leitner 간격**: box 0→1일, 1→3일, 2→7일, 3→14일, 4→30일. 상세 → [03](03-domain-logic.md#3-스페이스드-리피티션).
 
-**이미지 저장 전략**: 원본 이미지는 SwiftData BLOB이 아니라 **파일 시스템**에 두고 파일명만 참조한다. CloudKit 동기화 시 자산 처리 전략은 7단계에서 확정한다 (→ [06](06-sync-and-backup.md)).
+**이미지 저장 전략**: `@Attribute(.externalStorage)`로 SwiftData 외부 저장소에 둔다. SwiftData가 큰 바이너리를 파일로 분리 관리하고 CloudKit이 자산으로 동기화하므로, 기기를 바꿔도 이미지가 따라온다.
+저장 전 리사이즈·JPEG 압축으로 용량을 억제한다 (→ [06](06-sync-and-backup.md#이미지-자산-처리--결정됨-swiftdata-외부-저장)).
 
 ---
 

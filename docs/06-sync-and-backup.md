@@ -71,35 +71,44 @@ let configuration = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
    ModelConfiguration(schema: schema, cloudKitDatabase: .private("iCloud.com.studion.app"))
    ```
 
-3. **동기화 on/off 처리 방식 결정 — 사용자 확인 필요**
+3. **동기화 on/off 처리 방식 — 결정됨: 항상 CloudKit 컨테이너**
 
-   SwiftData는 런타임에 CloudKit을 켜고 끄는 API를 제공하지 않는다. 컨테이너 구성 시점에 결정된다. 선택지:
+   SwiftData는 런타임에 CloudKit을 켜고 끄는 API를 제공하지 않는다. 컨테이너 구성 시점에 결정된다.
 
-   | 방안 | 장점 | 단점 |
-   |---|---|---|
-   | A. 토글 시 컨테이너 재생성 후 앱 재시작 안내 | 구현 단순 | 재시작 안내가 거칠다 |
-   | B. 항상 CloudKit 컨테이너, 미로그인 시 iCloud 계정 없음으로 자연 동작 | 재시작 없음 | 동기화 on/off가 사용자 통제 밖 |
-   | C. 로컬/클라우드 두 컨테이너 + 전환 시 마이그레이션 | 완전한 통제 | 구현 복잡, 데이터 손실 위험 |
+   **채택: 컨테이너를 항상 `.private`로 구성한다.** iCloud 계정이 없거나 로그인하지 않은 기기에서는 CloudKit 동기화가 자연스럽게 비활성 상태가 되고 로컬 저장소로만 동작한다.
 
-   **7단계 착수 시 사용자에게 물어서 결정한다. 임의로 정하지 않는다.**
+   | 결과 | 내용 |
+   |---|---|
+   | 앱 재시작 | 필요 없음 |
+   | 미로그인 동작 | 로컬 전용으로 완전히 동작 (원칙 2 유지) |
+   | 트레이드오프 | 사용자가 동기화를 명시적으로 "끌" 수는 없다 — iCloud 계정 유무가 곧 동기화 여부다 |
+
+   설정 화면의 "Apple로 로그인"은 **동기화 스위치가 아니라 사용자 식별·상태 표시**다.
+   토글로 오해할 문구("동기화 켜기/끄기")를 쓰지 않고, 현재 iCloud 상태를 그대로 알려준다.
 
 4. **Sign in with Apple**
    - `AuthenticationServices`의 `SignInWithAppleButton` 사용
    - 받은 `userIdentifier`는 Keychain에 저장. **이메일·이름을 저장하지 않는다** (필요 없다)
    - `ASAuthorizationAppleIDProvider.getCredentialState`로 앱 시작 시 유효성 확인
 
-### 이미지 자산 처리 — 미해결 과제
+### 이미지 자산 처리 — 결정됨: SwiftData 외부 저장
 
-오답노트 원본 이미지는 파일 시스템에 저장하고 `WrongAnswerNote.imageFileName`으로 참조한다 (→ [02](02-data-model.md#wronganswernote)).
+**채택: 오답노트 이미지를 `@Attribute(.externalStorage) var imageData: Data?`로 저장한다.**
 
-**문제**: 파일 시스템의 이미지는 CloudKit으로 자동 동기화되지 않는다. 기기를 바꾸면 텍스트만 오고 이미지가 사라진다.
+SwiftData가 큰 바이너리를 파일로 분리해 관리하고, CloudKit이 이를 자산으로 동기화한다. 기기를 바꿔도 이미지가 함께 따라온다.
 
-선택지:
-- **A.** 이미지를 SwiftData `@Attribute(.externalStorage) Data`로 옮긴다 → CloudKit이 자산으로 동기화. 용량 주의
-- **B.** 이미지는 동기화하지 않고 그 사실을 사용자에게 명시 → 구현 단순, 기대와 어긋날 수 있음
-- **C.** CloudKit `CKAsset`을 직접 관리 → SwiftData와 이원화되어 복잡
+| 항목 | 내용 |
+|---|---|
+| 저장 위치 | SwiftData 외부 저장소 (앱이 경로를 직접 다루지 않음) |
+| 동기화 | CloudKit 자산으로 자동 |
+| 대가 | 사용자 iCloud 용량을 소모한다 |
 
-**7단계 착수 시 사용자에게 물어서 결정한다.** 현재 스키마는 A로 전환하기 쉽게 파일명만 참조하는 형태로 두었다.
+**6단계 구현 규칙**
+- 이미지는 처음부터 `imageData`로 저장한다. 파일 시스템에 직접 쓰지 않는다.
+- 저장 전 **긴 변을 기준으로 리사이즈하고 JPEG로 압축**해 용량을 억제한다 (원본 해상도를 그대로 넣지 않는다).
+- `UIImage` ↔ `Data` 변환은 View 계층의 책임이다. `Utilities/`는 `Data`만 다룬다.
+
+> 이 결정으로 `WrongAnswerNote.imageFileName`(파일명 참조)은 **쓰지 않는다.** → [02](02-data-model.md#wronganswernote)
 
 ### 충돌 해결
 

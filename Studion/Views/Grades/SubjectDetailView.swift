@@ -2,15 +2,34 @@ import SwiftUI
 import SwiftData
 import Charts
 
-/// 내신 과목 상세.
-///
-/// 이 화면은 두 단계가 나눠 만든다 — ① 성적 추이와 ② 목표 진척 게이지가 4단계 몫이고,
-/// ③ 오답노트 리스트는 6단계에서 여기에 추가된다.
+/// 내신 과목 상세. ① 성적 추이 ② 목표 진척 게이지 ③ 오답노트 리스트.
 struct SubjectDetailView: View {
+    @Environment(\.modelContext) private var context
+    @Environment(\.calendar) private var calendar
+
     let record: SchoolSubjectRecord
 
     @Query(sort: [SortDescriptor(\Semester.year), SortDescriptor(\Semester.term)])
     private var semesters: [Semester]
+
+    @State private var isAddingNote = false
+    @State private var noteToEdit: WrongAnswerNote?
+    @State private var subcategoryFilter: EnglishSubcategory?
+
+    private var notes: [WrongAnswerNote] {
+        (record.wrongAnswerNotes ?? []).sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// 영어 하위 카테고리 필터는 **과목명 문자열로 판단하지 않는다.**
+    /// 오답노트에 실제로 영역이 지정된 적이 있을 때만 노출한다.
+    private var hasEnglishSubcategories: Bool {
+        notes.contains { $0.englishSubcategory != nil }
+    }
+
+    private var filteredNotes: [WrongAnswerNote] {
+        guard let subcategoryFilter else { return notes }
+        return notes.filter { $0.englishSubcategory == subcategoryFilter }
+    }
 
     private var system: GradingSystemType {
         record.semester?.gradingSystemType ?? .fiveTier
@@ -62,9 +81,77 @@ struct SubjectDetailView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            wrongAnswerSection
         }
         .navigationTitle(record.subjectName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isAddingNote = true
+                } label: {
+                    Label("오답노트 추가", systemImage: "plus")
+                }
+            }
+        }
+        .sheet(isPresented: $isAddingNote) {
+            WrongAnswerFormView(schoolSubject: record)
+        }
+        .sheet(item: $noteToEdit) { note in
+            WrongAnswerFormView(schoolSubject: record, editing: note)
+        }
+    }
+
+    @ViewBuilder
+    private var wrongAnswerSection: some View {
+        Section {
+            if notes.isEmpty {
+                ContentUnavailableView {
+                    Label("오답노트가 없어요", systemImage: "doc.text.image")
+                } description: {
+                    Text("틀린 문제를 찍어 오답노트를 만들어 보세요.")
+                } actions: {
+                    Button("사진으로 추가") { isAddingNote = true }
+                }
+            } else {
+                if hasEnglishSubcategories {
+                    Picker("영역", selection: $subcategoryFilter) {
+                        Text("전체").tag(EnglishSubcategory?.none)
+                        ForEach(EnglishSubcategory.allCases) { item in
+                            Text(item.displayName).tag(EnglishSubcategory?.some(item))
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                ForEach(filteredNotes) { note in
+                    Button {
+                        noteToEdit = note
+                    } label: {
+                        WrongAnswerCard(
+                            text: note.userEditedText,
+                            causeTag: note.causeTag,
+                            englishSubcategory: note.englishSubcategory,
+                            isDue: ReviewScheduler.isDue(
+                                nextReviewDate: note.nextReviewDate, on: Date(), calendar: calendar
+                            ),
+                            imageData: note.imageData
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .onDelete(perform: deleteNotes)
+            }
+        } header: {
+            Text("오답노트")
+        }
+    }
+
+    private func deleteNotes(at offsets: IndexSet) {
+        for index in offsets {
+            context.delete(filteredNotes[index])
+        }
     }
 
     private var trendChart: some View {

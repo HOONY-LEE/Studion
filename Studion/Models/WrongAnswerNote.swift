@@ -9,8 +9,11 @@ final class WrongAnswerNote {
     var userEditedText: String = ""
     var causeTagRaw: String = WrongAnswerCauseTag.dontKnow.rawValue
     var englishSubcategoryRaw: String?
-    /// 앱 문서 디렉터리에 저장된 원본 이미지 파일명 (CloudKit 자산 처리 전략은 7단계에서 확정).
-    var imageFileName: String?
+
+    /// 원본 이미지. SwiftData가 외부 파일로 분리 저장하고 CloudKit이 자산으로 동기화한다.
+    /// 저장 전 리사이즈·JPEG 압축으로 용량을 억제한다.
+    @Attribute(.externalStorage) var imageData: Data?
+
     var createdAt: Date = Date()
 
     /// 스페이스드 리피티션 (Leitner box): 0=1일, 1=3일, 2=7일, 3=14일, 4=30일.

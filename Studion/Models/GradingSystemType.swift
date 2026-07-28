@@ -58,6 +58,15 @@ enum WrongAnswerCauseTag: String, Codable, CaseIterable, Identifiable {
     case trap          // 함정
 
     var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .dontKnow: String(localized: "몰라서")
+        case .mistake: String(localized: "실수")
+        case .timeShortage: String(localized: "시간 부족")
+        case .trap: String(localized: "함정")
+        }
+    }
 }
 
 /// 영어 과목 오답노트 하위 카테고리.
@@ -65,6 +74,15 @@ enum EnglishSubcategory: String, Codable, CaseIterable, Identifiable {
     case reading, grammar, vocabulary, listening
 
     var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .reading: String(localized: "독해")
+        case .grammar: String(localized: "문법")
+        case .vocabulary: String(localized: "어휘")
+        case .listening: String(localized: "듣기")
+        }
+    }
 }
 
 /// 시간표 항목 유형.

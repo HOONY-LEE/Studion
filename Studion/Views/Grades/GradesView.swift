@@ -27,6 +27,13 @@ struct GradesView: View {
                     }
                     .pickerStyle(.segmented)
                 }
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink {
+                        ReviewSessionView()
+                    } label: {
+                        Label("복습", systemImage: "rectangle.on.rectangle.angled")
+                    }
+                }
             }
         }
     }
