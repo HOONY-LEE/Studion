@@ -30,6 +30,9 @@ struct RootView: View {
             PlannerView()
                 .tabItem { Label("플래너", systemImage: "calendar") }
 
+            LearnView()
+                .tabItem { Label("학습", systemImage: "rectangle.stack") }
+
             GradesView()
                 .tabItem { Label("성적", systemImage: "chart.bar") }
 

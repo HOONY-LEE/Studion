@@ -39,6 +39,8 @@ struct StudionApp: App {
         WrongAnswerNote.self,
         TimetableEntry.self,
         PlanItem.self,
+        QuestionSet.self,
+        Question.self,
     ])
 
     /// CloudKit이 가능한 구성에서는 **항상 CloudKit으로** 컨테이너를 만든다.

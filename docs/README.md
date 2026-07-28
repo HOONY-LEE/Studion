@@ -14,7 +14,8 @@
 | [04-ui-spec.md](04-ui-spec.md) | 화면별 IA·레이아웃·상호작용·빈 상태 | 2·3·4·5·6·8·9 |
 | [05-localization-a11y.md](05-localization-a11y.md) | 다국어, Dynamic Type, 접근성, 색상 팔레트 | 2·8·9 |
 | [06-sync-and-backup.md](06-sync-and-backup.md) | Sign in with Apple, CloudKit, JSON 백업 | 7·8 |
-| [07-content-system-future.md](07-content-system-future.md) | 콘텐츠 시스템 (장기 로드맵, 1차 구현 안 함) | — |
+| [07-content-system-future.md](07-content-system-future.md) | 개발자 저작 콘텐츠 배포 (장기 로드맵, 미구현) | — |
+| [08-question-bank.md](08-question-bank.md) | 학습 탭 — 문제집·문제 카드, 채점 규칙, 공유 미결정 사항 | 학습 |
 
 ## 단계별 실행 스펙
 
