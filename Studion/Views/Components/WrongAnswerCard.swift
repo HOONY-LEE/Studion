@@ -2,6 +2,9 @@ import SwiftUI
 
 /// 오답노트 카드 한 장.
 struct WrongAnswerCard: View {
+    /// 썸네일 크기. 글자가 커지면 함께 커진다.
+    @ScaledMetric(relativeTo: .subheadline) private var thumbnailSize: CGFloat = 56
+
     let text: String
     let causeTag: WrongAnswerCauseTag
     let englishSubcategory: EnglishSubcategory?
@@ -14,7 +17,7 @@ struct WrongAnswerCard: View {
                 Image(uiImage: uiImage)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 56, height: 56)
+                    .frame(width: thumbnailSize, height: thumbnailSize)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .accessibilityHidden(true)
             }

@@ -176,6 +176,11 @@ struct SettingsView: View {
             } label: {
                 Label("이수 과목 관리", systemImage: "list.bullet")
             }
+            NavigationLink {
+                NotificationSettingsView()
+            } label: {
+                Label("알림", systemImage: "bell")
+            }
         }
     }
 

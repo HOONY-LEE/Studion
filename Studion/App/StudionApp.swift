@@ -8,15 +8,24 @@ struct StudionApp: App {
 
     let modelContainer: ModelContainer = Self.makeModelContainer()
 
+    @AppStorage(PreferenceKey.hasCompletedOnboarding) private var hasCompletedOnboarding = false
+
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environment(signInStore)
-                .environment(cloudStatus)
-                .task {
-                    await cloudStatus.refresh()
-                    await signInStore.refreshCredentialState()
+            // 온보딩 게이트는 이 한 곳에만 둔다.
+            Group {
+                if hasCompletedOnboarding {
+                    RootView()
+                } else {
+                    OnboardingView()
                 }
+            }
+            .environment(signInStore)
+            .environment(cloudStatus)
+            .task {
+                await cloudStatus.refresh()
+                await signInStore.refreshCredentialState()
+            }
         }
         .modelContainer(modelContainer)
     }
