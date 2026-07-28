@@ -79,6 +79,9 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            // Sign in with Apple은 유료 멤버십 entitlement가 있어야 동작한다.
+            // 없는 빌드에서는 버튼을 아예 노출하지 않는다 — 눌러도 실패할 항목을 두지 않는다.
+            #if CLOUD_SYNC
             if signInStore.isSignedIn {
                 LabeledContent("Apple 계정") {
                     Label("연결됨", systemImage: "checkmark.circle.fill")
@@ -97,14 +100,23 @@ struct SettingsView: View {
                 .frame(height: 44)
                 .listRowInsets(EdgeInsets())
             }
+            #endif
         } header: {
             Text("기기 간 데이터")
         } footer: {
+            #if CLOUD_SYNC
             Text("""
                 기기를 바꿔도 데이터를 유지하려면 같은 iCloud 계정을 쓰세요. \
                 로그인하지 않아도 모든 기능은 이 기기에서 그대로 동작합니다. \
                 저장된 내용은 본인의 iCloud에만 보관되며 개발자가 볼 수 없습니다.
                 """)
+            #else
+            Text("""
+                이 빌드에는 기기 간 동기화가 포함되어 있지 않습니다. \
+                모든 기능은 그대로 동작하며 데이터는 이 기기에 저장됩니다. \
+                기기를 옮길 때는 아래 백업 내보내기를 사용하세요.
+                """)
+            #endif
         }
         .confirmationDialog(
             "Apple 계정 연결을 해제할까요?",

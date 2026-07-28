@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Debug 구성용 — 무료 Apple ID로 실기기에 설치할 때 쓴다.
+
+  iCloud와 Sign in with Apple은 유료 멤버십이 필요해 무료 계정에서는
+  프로비저닝 프로파일 발급이 실패한다. 그래서 이 구성은 entitlement를 비운다.
+
+  동기화만 빠지고 성적·플래너·OCR 오답노트·복습은 그대로 동작한다
+  (앱은 로컬 저장소로만 돌아간다).
+-->
+<plist version="1.0">
+<dict/>
+</plist>

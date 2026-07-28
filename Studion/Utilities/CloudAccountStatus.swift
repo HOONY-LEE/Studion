@@ -15,12 +15,15 @@ final class CloudAccountStatus {
         case available
         /// iCloud 계정이 없거나 사용할 수 없음 — 로컬 전용으로 동작한다.
         case unavailable
+        /// 이 빌드가 동기화를 포함하지 않는다 (무료 계정용 구성).
+        case notSupportedInThisBuild
 
         var summary: String {
             switch self {
             case .unknown: String(localized: "확인 중…")
             case .available: String(localized: "이 기기의 iCloud 계정으로 동기화됩니다.")
             case .unavailable: String(localized: "iCloud에 로그인되어 있지 않아 이 기기에만 저장됩니다.")
+            case .notSupportedInThisBuild: String(localized: "이 빌드는 동기화 없이 이 기기에만 저장됩니다.")
             }
         }
     }
@@ -28,7 +31,12 @@ final class CloudAccountStatus {
     private(set) var state: State = .unknown
 
     func refresh() async {
+        #if CLOUD_SYNC
+        // entitlement가 없는 빌드에서 CKContainer에 접근하면 실패하므로 이 분기 안에서만 호출한다.
         let status = try? await CKContainer.default().accountStatus()
         state = status == .available ? .available : .unavailable
+        #else
+        state = .notSupportedInThisBuild
+        #endif
     }
 }

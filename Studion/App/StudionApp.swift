@@ -41,12 +41,15 @@ struct StudionApp: App {
         PlanItem.self,
     ])
 
-    /// 컨테이너를 **항상 CloudKit으로 구성**한다.
+    /// CloudKit이 가능한 구성에서는 **항상 CloudKit으로** 컨테이너를 만든다.
     ///
     /// SwiftData는 런타임에 CloudKit을 켜고 끄는 API를 제공하지 않는다.
     /// iCloud 계정이 없는 기기에서는 동기화가 자연스럽게 비활성화되고 로컬 저장소로만 동작하므로,
     /// 로그인하지 않은 사용자도 모든 기능을 그대로 쓸 수 있다.
+    ///
+    /// `CLOUD_SYNC`가 정의되지 않은 구성(무료 계정용 Debug)에서는 처음부터 로컬 전용이다.
     private static func makeModelContainer() -> ModelContainer {
+        #if CLOUD_SYNC
         let cloudConfiguration = ModelConfiguration(
             schema: schema,
             cloudKitDatabase: .private("iCloud.com.studion.app")
@@ -55,9 +58,9 @@ struct StudionApp: App {
         if let container = try? ModelContainer(for: schema, configurations: [cloudConfiguration]) {
             return container
         }
+        #endif
 
-        // CloudKit 구성에 실패해도 앱이 죽지 않아야 한다 (원칙 2: 로컬 우선).
-        // 개발 중 entitlement가 없거나 컨테이너를 만들 수 없는 환경에서 여기로 떨어진다.
+        // CloudKit을 쓸 수 없어도 앱이 죽지 않아야 한다 (원칙 2: 로컬 우선).
         let localConfiguration = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
         if let container = try? ModelContainer(for: schema, configurations: [localConfiguration]) {
             return container

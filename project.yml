@@ -54,15 +54,15 @@ targets:
         # 실기기 빌드용 서명. 시뮬레이터는 서명 없이도 동작한다.
         DEVELOPMENT_TEAM: 2J399JB6Q6
         CODE_SIGN_STYLE: Automatic
-    entitlements:
-      path: Studion/Studion.entitlements
-      properties:
-        com.apple.developer.icloud-container-identifiers:
-          - iCloud.com.studion.app
-        com.apple.developer.icloud-services:
-          - CloudKit
-        com.apple.developer.applesignin:
-          - Default
+      configs:
+        # 무료 Apple ID로 실기기에 설치할 수 있도록 entitlement를 비운다.
+        # iCloud·Sign in with Apple은 유료 멤버십이 있어야 프로파일이 발급된다.
+        Debug:
+          CODE_SIGN_ENTITLEMENTS: Config/StudionLocal.entitlements
+        # 유료 멤버십 승인 후 동기화까지 포함해 빌드하는 구성.
+        Release:
+          CODE_SIGN_ENTITLEMENTS: Config/Studion.entitlements
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: CLOUD_SYNC
 
   StudionTests:
     type: bundle.unit-test
