@@ -1,0 +1,61 @@
+{
+  "sourceLanguage" : "ko",
+  "strings" : {
+    "내신" : {
+      "comment" : "education-terms: 학교 시험 성적. 영어권에는 대응 개념이 없어 음차 + 설명 병기를 검토한다.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Naesin"
+          }
+        }
+      }
+    },
+    "모의고사" : {
+      "comment" : "education-terms: 수능 대비 전국 단위 모의 시험.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Mock exam"
+          }
+        }
+      }
+    },
+    "석차등급" : {
+      "comment" : "education-terms: 상대평가 등급. 1이 가장 좋다 — 영어권의 A~F와 방향이 반대라 주의.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Rank grade"
+          }
+        }
+      }
+    },
+    "이수단위" : {
+      "comment" : "education-terms: 과목 학점 가중치.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Credit units"
+          }
+        }
+      }
+    },
+    "성취도" : {
+      "comment" : "education-terms: 절대평가 등급 A~E.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "Achievement level"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
