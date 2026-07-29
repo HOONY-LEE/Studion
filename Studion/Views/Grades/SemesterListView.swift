@@ -67,7 +67,10 @@ struct SemesterListView: View {
             }
         }
         .sheet(isPresented: $showingSemesterForm) {
-            SemesterFormView(defaultSystem: profile?.gradingSystemType ?? .fiveTier)
+            SemesterFormView(
+                defaultSystem: profile?.gradingSystemType ?? .fiveTier,
+                admissionYear: profile?.admissionYear ?? Calendar.current.component(.year, from: Date())
+            )
         }
         .sheet(isPresented: $isAddingSubject) {
             if let selectedSemester {
@@ -206,27 +209,57 @@ private struct SemesterFormView: View {
     @Environment(\.dismiss) private var dismiss
 
     let defaultSystem: GradingSystemType
+    let admissionYear: Int
 
-    @State private var year = Calendar.current.component(.year, from: Date())
+    @State private var year: Int
     @State private var term = 1
     @State private var system: GradingSystemType
+    @State private var includeCommonSubjects = true
 
-    init(defaultSystem: GradingSystemType) {
+    init(defaultSystem: GradingSystemType, admissionYear: Int) {
         self.defaultSystem = defaultSystem
+        self.admissionYear = admissionYear
         _system = State(initialValue: defaultSystem)
+        // 첫 학기는 보통 입학연도다. 현재 연도를 기본값으로 두면 이미 지난 학년으로 잡혀
+        // 고1 공통과목 제안이 나오지 않는다.
+        let currentYear = Calendar.current.component(.year, from: Date())
+        _year = State(initialValue: max(admissionYear, min(currentYear, admissionYear + 2)))
+    }
+
+    private var revision: CurriculumRevision {
+        CurriculumRevision.forAdmissionYear(admissionYear)
+    }
+
+    /// 이 학기가 몇 학년인지. 입학연도로 계산한다.
+    private var gradeLevel: Int { year - admissionYear + 1 }
+
+    /// 공통과목은 고1에만 있다.
+    private var isFirstYear: Bool { gradeLevel == 1 }
+
+    private var commonSubjects: [SubjectPreset] {
+        CurriculumPreset.commonSubjects(for: revision, term: term)
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Picker("학년도", selection: $year) {
-                    ForEach((year - 5)...(year + 1), id: \.self) { value in
+                    // 입학연도부터 3년(고1~고3)을 기본 범위로 두고, 재수·검정고시 등을 위해
+                    // 앞뒤로 한 해씩 여유를 준다.
+                    ForEach((admissionYear - 1)...(admissionYear + 3), id: \.self) { value in
                         Text(verbatim: "\(value)").tag(value)
                     }
                 }
                 Picker("학기", selection: $term) {
                     Text("1학기").tag(1)
                     Text("2학기").tag(2)
+                }
+
+                if (1...3).contains(gradeLevel) {
+                    LabeledContent("학년") {
+                        Text("고\(gradeLevel)")
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Section {
                     Picker("등급제", selection: $system) {
@@ -237,6 +270,10 @@ private struct SemesterFormView: View {
                 } footer: {
                     Text("학기를 만들 때 등급제가 고정됩니다. 나중에 설정을 바꿔도 이 학기의 기록은 그대로 유지됩니다.")
                 }
+
+                if isFirstYear {
+                    commonSubjectsSection
+                }
             }
             .navigationTitle("학기 추가")
             .navigationBarTitleDisplayMode(.inline)
@@ -245,12 +282,59 @@ private struct SemesterFormView: View {
                     Button("취소") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("저장") {
-                        context.insert(Semester(year: year, term: term, gradingSystemType: system))
-                        dismiss()
-                    }
+                    Button("저장") { save() }
                 }
             }
         }
+    }
+
+    /// 고1 공통과목은 국가 교육과정이 정해 전국이 같다. 매번 타이핑하지 않도록 미리 넣어준다.
+    /// 넣은 뒤에도 이름·단위·평가 방식을 자유롭게 고칠 수 있다.
+    private var commonSubjectsSection: some View {
+        Section {
+            Toggle("공통과목 함께 추가", isOn: $includeCommonSubjects)
+
+            if includeCommonSubjects {
+                ForEach(commonSubjects) { preset in
+                    HStack {
+                        Text(verbatim: preset.name)
+                        Spacer()
+                        Text("\(preset.creditUnits, format: .number.precision(.fractionLength(0)))단위")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.callout)
+                }
+            }
+        } header: {
+            Text("고1 공통과목")
+        } footer: {
+            if includeCommonSubjects {
+                if CurriculumPreset.creditUnitsAreAnnual(for: revision) {
+                    Text("\(revision.displayName) 기준입니다. 이수단위는 **연간 기준**이라 학기별로 나눠 들으면 값을 고쳐 주세요. 과목은 나중에 언제든 수정·삭제할 수 있습니다.")
+                } else {
+                    Text("\(revision.displayName) 기준입니다. 학교 편성에 따라 다를 수 있으니 확인 후 고쳐 주세요.")
+                }
+            }
+        }
+    }
+
+    private func save() {
+        let semester = Semester(year: year, term: term, gradingSystemType: system)
+        context.insert(semester)
+
+        if isFirstYear, includeCommonSubjects {
+            for preset in commonSubjects {
+                let record = SchoolSubjectRecord(
+                    subjectName: preset.name,
+                    creditUnits: preset.creditUnits,
+                    evaluationType: preset.evaluationType,
+                    semester: semester
+                )
+                context.insert(record)
+            }
+        }
+
+        dismiss()
     }
 }

@@ -3,8 +3,9 @@ import SwiftData
 
 /// 내신 과목 추가/편집 화면.
 ///
-/// 가장 먼저 "이 과목은 석차등급이 산출되나요?"를 묻고, 그 답에 따라 입력 필드 구성이 갈린다.
-/// 어떤 과목이 융합선택인지 앱은 알지 못하며 알려고 하지 않는다 — 사용자가 직접 지정한다.
+/// "이 과목은 석차등급이 산출되나요?"의 답에 따라 입력 필드 구성이 갈린다.
+/// 교육과정 프리셋이 이 값을 **제안**하지만, 최종 결정은 항상 사용자가 한다 —
+/// 학교 편성과 교육과정 개정에 따라 달라질 수 있기 때문이다.
 struct SubjectFormView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -12,6 +13,22 @@ struct SubjectFormView: View {
     let semester: Semester
     /// 편집 대상. `nil`이면 새로 추가하는 것이다.
     var editing: SchoolSubjectRecord?
+    /// 과목 이름 추천에 쓸 교육과정. 학기의 등급제로 역산한다.
+    private var revision: CurriculumRevision {
+        semester.gradingSystemType == .fiveTier ? .revision2022 : .revision2015
+    }
+
+    /// 입력 중인 이름과 겹치는 추천 과목. 이미 정확히 일치하면 보여주지 않는다.
+    private var matchingSuggestions: [String] {
+        let query = subjectName.trimmed
+        guard !query.isEmpty else { return [] }
+
+        let candidates = CurriculumPreset.suggestedElectiveNames(for: revision)
+        let matches = candidates.filter { $0.localizedStandardContains(query) }
+        // 이미 정확히 고른 상태면 목록을 접는다.
+        guard !(matches.count == 1 && matches[0] == query) else { return [] }
+        return Array(matches.prefix(6))
+    }
 
     @State private var subjectName = ""
     @State private var evaluationType: SchoolSubjectEvaluationType = .achievementAndRank
@@ -53,7 +70,28 @@ struct SubjectFormView: View {
             Form {
                 Section {
                     TextField("과목명", text: $subjectName)
+
+                    ForEach(matchingSuggestions, id: \.self) { name in
+                        Button {
+                            applySuggestion(name)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "text.badge.plus")
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityHidden(true)
+                                Text(verbatim: name)
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+
                     numberField("이수단위", text: $creditUnitsText, prompt: "예: 4")
+                } footer: {
+                    if !matchingSuggestions.isEmpty {
+                        Text("자주 쓰이는 과목 이름입니다. 목록에 없으면 그대로 입력하세요.")
+                    }
                 }
 
                 Section {
@@ -153,6 +191,18 @@ struct SubjectFormView: View {
                 EstimateLabel()
             }
             Text("원점수·과목평균·표준편차로 정규분포를 가정해 계산한 값입니다. 실제 등급과 다를 수 있습니다.")
+        }
+    }
+
+    /// 추천 과목을 고른다. 교육과정이 정한 평가 방식이 있으면 함께 맞춰준다.
+    ///
+    /// 맞춰준 값도 사용자가 다시 바꿀 수 있다 — 앱이 단정하지 않는다.
+    private func applySuggestion(_ name: String) {
+        subjectName = name
+        if let suggested = CurriculumPreset.suggestedEvaluationType(
+            forSubjectNamed: name, revision: revision
+        ) {
+            evaluationType = suggested
         }
     }
 

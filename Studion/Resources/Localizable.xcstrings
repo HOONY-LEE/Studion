@@ -175,6 +175,16 @@
         }
       }
     },
+    "%lld / %lld": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
     "%lld / 목표 %lld등급": {
       "localizations": {
         "en": {
@@ -241,6 +251,26 @@
         }
       }
     },
+    "%lld문제 중 %lld개 맞았습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld문제 중 %2$lld개 맞았습니다."
+          }
+        }
+      }
+    },
+    "%lld번을 정답으로 지정": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark choice %lld as correct"
+          }
+        }
+      }
+    },
     "%lld일, 할 일 %lld개 중 %lld개 완료": {
       "localizations": {
         "en": {
@@ -275,6 +305,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Semester 1"
+          }
+        }
+      }
+    },
+    "2015 개정 교육과정": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2015 Revised Curriculum"
+          }
+        }
+      }
+    },
+    "2022 개정 교육과정": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2022 Revised Curriculum"
           }
         }
       }
@@ -410,6 +460,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Grade %lld"
+          }
+        }
+      }
+    },
+    "고1 공통과목": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Year 1 Common Subjects"
+          }
+        }
+      }
+    },
+    "공통과목 함께 추가": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Common Subjects"
           }
         }
       }
@@ -1122,6 +1192,16 @@
         }
       }
     },
+    "문제 %lld개": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld questions"
+          }
+        }
+      }
+    },
     "문제 내용": {
       "localizations": {
         "en": {
@@ -1703,6 +1783,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Choices"
+          }
+        }
+      }
+    },
+    "선택지 %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choice %lld"
           }
         }
       }
@@ -2487,6 +2577,16 @@
         }
       }
     },
+    "왼쪽 동그라미를 눌러 정답을 지정하세요. 최대 %lld개까지 넣을 수 있습니다.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap the circle on the left to mark the correct answer. Up to %lld choices."
+          }
+        }
+      }
+    },
     "요약": {
       "localizations": {
         "en": {
@@ -2829,12 +2929,32 @@
         }
       }
     },
+    "자주 쓰이는 과목 이름입니다. 목록에 없으면 그대로 입력하세요.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commonly used subject names. If yours isn't listed, just type it in."
+          }
+        }
+      }
+    },
     "작성 중": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Draft"
+          }
+        }
+      }
+    },
+    "작성이 끝나지 않은 문제 %lld개는 세션에서 제외됩니다.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld unfinished questions are excluded from the session."
           }
         }
       }
