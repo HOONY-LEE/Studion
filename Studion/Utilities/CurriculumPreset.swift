@@ -41,6 +41,44 @@ struct SubjectPreset: Equatable, Identifiable {
     var id: String { name }
 }
 
+/// 선택과목의 구분. 2022 개정은 셋으로 나뉘고, 2015 개정은 일반/진로 둘뿐이다.
+enum ElectiveKind: String, CaseIterable, Identifiable {
+    case general   // 일반 선택 — 학문별 주요 내용
+    case career    // 진로 선택 — 심화
+    case fusion    // 융합 선택 — 교과 융합, 실생활 응용
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .general: String(localized: "일반 선택")
+        case .career: String(localized: "진로 선택")
+        case .fusion: String(localized: "융합 선택")
+        }
+    }
+}
+
+/// 한 교과(군)의 선택과목 묶음.
+struct ElectiveGroup: Equatable, Identifiable {
+    /// 교과(군) 이름. 예: "국어", "사회(역사/도덕 포함)"
+    let subjectArea: String
+    let general: [String]
+    let career: [String]
+    let fusion: [String]
+
+    var id: String { subjectArea }
+
+    func names(of kind: ElectiveKind) -> [String] {
+        switch kind {
+        case .general: general
+        case .career: career
+        case .fusion: fusion
+        }
+    }
+
+    var allNames: [String] { general + career + fusion }
+}
+
 /// 교육과정별 과목 프리셋.
 ///
 /// 순수 Swift로만 구현한다 — SwiftData·SwiftUI를 import하지 않는다.
@@ -148,48 +186,250 @@ enum CurriculumPreset {
             return .achievementOnly
         }
 
+        // 체육·예술·교양 교과는 두 교육과정 모두 석차등급을 내지 않는다.
+        if achievementOnlySubjectAreas.contains(where: { area in
+            electiveGroups(for: revision)
+                .first { $0.subjectArea == area }?
+                .allNames.contains(trimmed) ?? false
+        }) {
+            return .achievementOnly
+        }
+
         return nil
     }
 
-    // MARK: - 선택과목 이름 추천
-
-    /// 2·3학년에서 흔히 쓰이는 과목 이름.
+    /// 교과 전체가 성취도만 기재하는 교과(군).
     ///
-    /// - Important: **개설 목록이 아니다.** 실제 개설은 학교마다 다르며, 이건 이름을
-    ///   매번 타이핑하지 않게 돕는 자동완성 후보일 뿐이다. 여기 없는 과목은 직접 입력한다.
-    static func suggestedElectiveNames(for revision: CurriculumRevision) -> [String] {
-        switch revision {
-        case .revision2022:
-            return [
-                // 국어
-                "화법과 언어", "독서와 작문", "문학",
-                // 수학
-                "대수", "미적분Ⅰ", "미적분Ⅱ", "확률과 통계", "기하", "경제 수학",
-                // 영어
-                "영어Ⅰ", "영어Ⅱ", "영미 문학 읽기", "심화 영어",
-                // 사회
-                "세계시민과 지리", "세계사", "사회와 문화", "현대사회와 윤리",
-                "정치", "법과 사회", "경제", "윤리와 사상",
-                // 과학
-                "물리학", "화학", "생명과학", "지구과학",
-                "역학과 에너지", "전자기와 양자", "세포와 물질대사",
-            ] + socialScienceFusionElectives2022
+    /// 교육부 훈령상 체육·예술·교양은 석차등급을 산출하지 않는다.
+    private static let achievementOnlySubjectAreas: Set<String> = ["체육", "예술", "교양"]
 
-        case .revision2015:
-            return [
-                // 국어
-                "화법과 작문", "독서", "언어와 매체", "문학",
-                // 수학
-                "수학Ⅰ", "수학Ⅱ", "미적분", "확률과 통계", "기하", "실용 수학",
-                // 영어
-                "영어Ⅰ", "영어Ⅱ", "영어 독해와 작문", "영어 회화",
-                // 사회
-                "한국지리", "세계지리", "동아시아사", "세계사",
-                "경제", "정치와 법", "사회·문화", "생활과 윤리", "윤리와 사상",
-                // 과학
-                "물리학Ⅰ", "물리학Ⅱ", "화학Ⅰ", "화학Ⅱ",
-                "생명과학Ⅰ", "생명과학Ⅱ", "지구과학Ⅰ", "지구과학Ⅱ",
-            ]
+    // MARK: - 선택과목 카탈로그
+
+    /// 2·3학년 선택과목을 교과(군)별로 묶은 목록.
+    ///
+    /// - Important: **개설 목록이 아니다.** 국가 교육과정이 정한 과목 이름의 모음일 뿐이고,
+    ///   실제로 어떤 과목이 열리는지는 학교마다 다르다. 여기 없는 과목은 직접 입력한다.
+    static func electiveGroups(for revision: CurriculumRevision) -> [ElectiveGroup] {
+        switch revision {
+        case .revision2022: electiveGroups2022
+        case .revision2015: electiveGroups2015
         }
     }
+
+    /// 자동완성용 평면 목록. 교과군 구분 없이 이름만 필요할 때 쓴다.
+    static func suggestedElectiveNames(for revision: CurriculumRevision) -> [String] {
+        electiveGroups(for: revision).flatMap(\.allNames)
+    }
+
+    /// 2022 개정 교육과정 보통교과 선택과목 (교육과정 총론 <표5>).
+    ///
+    /// 제2외국어는 8개 언어가 각각 회화·심화·문화 과목을 갖는데, 그대로 펼치면
+    /// 30개가 넘어 목록이 잠긴다. 그래서 언어 기본 과목만 싣고 파생 과목은
+    /// `secondLanguageDerivedNames(for:)`로 따로 만든다.
+    private static let electiveGroups2022: [ElectiveGroup] = [
+        ElectiveGroup(
+            subjectArea: "국어",
+            general: ["화법과 언어", "독서와 작문", "문학"],
+            career: ["주제 탐구 독서", "문학과 영상", "직무 의사소통"],
+            fusion: ["독서 토론과 글쓰기", "매체 의사소통", "언어생활 탐구"]
+        ),
+        ElectiveGroup(
+            subjectArea: "수학",
+            general: ["대수", "미적분Ⅰ", "확률과 통계"],
+            career: ["기하", "미적분Ⅱ", "경제 수학", "인공지능 수학", "직무 수학"],
+            fusion: ["수학과 문화", "실용 통계", "수학과제 탐구"]
+        ),
+        ElectiveGroup(
+            subjectArea: "영어",
+            general: ["영어Ⅰ", "영어Ⅱ", "영어 독해와 작문"],
+            career: [
+                "영미 문학 읽기", "영어 발표와 토론", "심화 영어",
+                "심화 영어 독해와 작문", "직무 영어",
+            ],
+            fusion: ["실생활 영어 회화", "미디어 영어", "세계 문화와 영어"]
+        ),
+        ElectiveGroup(
+            subjectArea: "사회(역사/도덕 포함)",
+            general: ["세계시민과 지리", "세계사", "사회와 문화", "현대사회와 윤리"],
+            career: [
+                "한국지리 탐구", "도시의 미래 탐구", "동아시아 역사 기행",
+                "정치", "법과 사회", "경제", "윤리와 사상",
+                "인문학과 윤리", "국제 관계의 이해",
+            ],
+            fusion: [
+                "여행지리", "역사로 탐구하는 현대 세계", "사회문제 탐구",
+                "금융과 경제생활", "윤리문제 탐구", "기후변화와 지속가능한 세계",
+            ]
+        ),
+        ElectiveGroup(
+            subjectArea: "과학",
+            general: ["물리학", "화학", "생명과학", "지구과학"],
+            career: [
+                "역학과 에너지", "전자기와 양자", "물질과 에너지", "화학 반응의 세계",
+                "세포와 물질대사", "생물의 유전", "지구시스템과학", "행성우주과학",
+            ],
+            fusion: ["과학의 역사와 문화", "기후변화와 환경생태", "융합과학 탐구"]
+        ),
+        ElectiveGroup(
+            subjectArea: "체육",
+            general: ["체육1", "체육2"],
+            career: ["운동과 건강", "스포츠 문화", "스포츠 과학"],
+            fusion: ["스포츠 생활1", "스포츠 생활2"]
+        ),
+        ElectiveGroup(
+            subjectArea: "예술",
+            general: ["음악", "미술", "연극"],
+            career: [
+                "음악 연주와 창작", "음악 감상과 비평",
+                "미술 창작", "미술 감상과 비평",
+            ],
+            fusion: ["음악과 미디어", "미술과 매체"]
+        ),
+        ElectiveGroup(
+            subjectArea: "기술·가정",
+            general: ["기술·가정"],
+            career: ["로봇과 공학세계", "생활과학 탐구"],
+            fusion: [
+                "창의 공학 설계", "지식 재산 일반",
+                "생애 설계와 자립", "아동발달과 부모",
+            ]
+        ),
+        ElectiveGroup(
+            subjectArea: "정보",
+            general: ["정보"],
+            career: ["인공지능 기초", "데이터 과학"],
+            fusion: ["소프트웨어와 생활"]
+        ),
+        ElectiveGroup(
+            subjectArea: "제2외국어",
+            general: secondLanguages,
+            career: [],
+            fusion: []
+        ),
+        ElectiveGroup(
+            subjectArea: "한문",
+            general: ["한문"],
+            career: ["한문 고전 읽기"],
+            fusion: ["언어생활과 한자"]
+        ),
+        ElectiveGroup(
+            subjectArea: "교양",
+            general: ["진로와 직업", "생태와 환경"],
+            career: [
+                "인간과 철학", "논리와 사고", "인간과 심리",
+                "교육의 이해", "삶과 종교", "보건",
+            ],
+            fusion: ["인간과 경제활동", "논술"]
+        ),
+    ]
+
+    /// 2022 개정 제2외국어 8개 언어.
+    static let secondLanguages: [String] = [
+        "독일어", "프랑스어", "스페인어", "중국어",
+        "일본어", "러시아어", "아랍어", "베트남어",
+    ]
+
+    /// 한 언어의 파생 과목 이름 (회화·심화·문화).
+    ///
+    /// "중국 문화"처럼 어미가 불규칙한 경우가 있어 표로 둔다 —
+    /// 규칙으로 만들면 "중국어 문화" 같은 없는 이름이 생긴다.
+    static func secondLanguageDerivedNames(for language: String) -> [String] {
+        let cultureName: String
+        switch language {
+        case "독일어": cultureName = "독일어권 문화"
+        case "프랑스어": cultureName = "프랑스어권 문화"
+        case "스페인어": cultureName = "스페인어권 문화"
+        case "중국어": cultureName = "중국 문화"
+        case "일본어": cultureName = "일본 문화"
+        case "러시아어": cultureName = "러시아 문화"
+        case "아랍어": cultureName = "아랍 문화"
+        case "베트남어": cultureName = "베트남 문화"
+        default: return []
+        }
+        return ["\(language) 회화", "심화 \(language)", cultureName]
+    }
+
+    /// 2015 개정 교육과정 보통교과 선택과목.
+    ///
+    /// 2015 개정에는 융합 선택 구분이 없다 — 일반 선택과 진로 선택 둘뿐이다.
+    private static let electiveGroups2015: [ElectiveGroup] = [
+        ElectiveGroup(
+            subjectArea: "국어",
+            general: ["화법과 작문", "독서", "언어와 매체", "문학"],
+            career: ["실용 국어", "심화 국어", "고전 읽기"],
+            fusion: []
+        ),
+        ElectiveGroup(
+            subjectArea: "수학",
+            general: ["수학Ⅰ", "수학Ⅱ", "미적분", "확률과 통계"],
+            career: ["실용 수학", "기하", "경제 수학", "수학과제 탐구"],
+            fusion: []
+        ),
+        ElectiveGroup(
+            subjectArea: "영어",
+            general: ["영어 회화", "영어Ⅰ", "영어 독해와 작문", "영어Ⅱ"],
+            career: ["실용 영어", "영어권 문화", "진로 영어", "영미 문학 읽기"],
+            fusion: []
+        ),
+        ElectiveGroup(
+            subjectArea: "사회(역사/도덕 포함)",
+            general: [
+                "한국지리", "세계지리", "세계사", "동아시아사",
+                "경제", "정치와 법", "사회·문화", "생활과 윤리", "윤리와 사상",
+            ],
+            career: ["여행지리", "사회문제 탐구", "고전과 윤리"],
+            fusion: []
+        ),
+        ElectiveGroup(
+            subjectArea: "과학",
+            general: ["물리학Ⅰ", "화학Ⅰ", "생명과학Ⅰ", "지구과학Ⅰ"],
+            career: [
+                "물리학Ⅱ", "화학Ⅱ", "생명과학Ⅱ", "지구과학Ⅱ",
+                "과학사", "생활과 과학", "융합과학",
+            ],
+            fusion: []
+        ),
+        ElectiveGroup(
+            subjectArea: "체육",
+            general: ["체육", "운동과 건강"],
+            career: ["스포츠 생활", "체육 탐구"],
+            fusion: []
+        ),
+        ElectiveGroup(
+            subjectArea: "예술",
+            general: ["음악", "미술", "연극"],
+            career: ["음악 연주", "음악 감상과 비평", "미술 창작", "미술 감상과 비평"],
+            fusion: []
+        ),
+        ElectiveGroup(
+            subjectArea: "기술·가정",
+            general: ["기술·가정", "정보"],
+            career: [
+                "농업 생명 과학", "공학 일반", "창의 경영", "해양 문화와 기술",
+                "가정과학", "지식 재산 일반", "인공지능 기초",
+            ],
+            fusion: []
+        ),
+        ElectiveGroup(
+            subjectArea: "제2외국어",
+            general: secondLanguages.map { "\($0)Ⅰ" },
+            career: secondLanguages.map { "\($0)Ⅱ" },
+            fusion: []
+        ),
+        ElectiveGroup(
+            subjectArea: "한문",
+            general: ["한문Ⅰ"],
+            career: ["한문Ⅱ"],
+            fusion: []
+        ),
+        ElectiveGroup(
+            subjectArea: "교양",
+            general: [
+                "철학", "논리학", "심리학", "교육학",
+                "종교학", "진로와 직업", "보건", "환경", "실용 경제", "논술",
+            ],
+            career: [],
+            fusion: []
+        ),
+    ]
 }

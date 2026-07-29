@@ -24,9 +24,6 @@ struct RootView: View {
 
     private var tabs: some View {
         TabView {
-            TodayView()
-                .tabItem { Label("오늘", systemImage: "house") }
-
             PlannerView()
                 .tabItem { Label("플래너", systemImage: "calendar") }
 
@@ -34,7 +31,10 @@ struct RootView: View {
                 .tabItem { Label("학습", systemImage: "rectangle.stack") }
 
             GradesView()
-                .tabItem { Label("성적", systemImage: "chart.bar") }
+                .tabItem { Label("기록", systemImage: "chart.bar") }
+
+            DeveloperChatView()
+                .tabItem { Label("개발자", systemImage: "bubble.left.and.bubble.right") }
 
             SettingsView()
                 .tabItem { Label("설정", systemImage: "gearshape") }

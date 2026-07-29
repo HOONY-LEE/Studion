@@ -31,6 +31,7 @@ struct SubjectFormView: View {
     }
 
     @State private var subjectName = ""
+    @State private var isPickingFromCatalog = false
     @State private var evaluationType: SchoolSubjectEvaluationType = .achievementAndRank
     @State private var creditUnitsText = ""
     @State private var rawScoreText = ""
@@ -85,6 +86,12 @@ struct SubjectFormView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                    }
+
+                    Button {
+                        isPickingFromCatalog = true
+                    } label: {
+                        Label("교과별 목록에서 고르기", systemImage: "list.bullet.indent")
                     }
 
                     numberField("이수단위", text: $creditUnitsText, prompt: "예: 4")
@@ -147,6 +154,11 @@ struct SubjectFormView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("저장") { save() }
                         .disabled(!canSave)
+                }
+            }
+            .sheet(isPresented: $isPickingFromCatalog) {
+                ElectivePickerView(revision: revision) { name in
+                    applySuggestion(name)
                 }
             }
             .onAppear(perform: loadExistingValues)

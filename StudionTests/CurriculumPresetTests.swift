@@ -190,3 +190,136 @@ struct ElectiveSuggestionTests {
         }
     }
 }
+
+// MARK: - 선택과목 카탈로그
+
+@Suite("선택과목 카탈로그")
+struct ElectiveCatalogTests {
+
+    @Test("두 교육과정 모두 교과군이 충분히 들어 있다")
+    func hasSubjectAreas() {
+        for revision in CurriculumRevision.allCases {
+            let groups = CurriculumPreset.electiveGroups(for: revision)
+            #expect(groups.count >= 10, "\(revision) 교과군이 부족합니다")
+
+            let areas = groups.map(\.subjectArea)
+            for expected in ["국어", "수학", "영어", "과학", "체육", "예술", "교양"] {
+                #expect(areas.contains(expected), "\(revision)에 \(expected) 교과군이 없습니다")
+            }
+        }
+    }
+
+    @Test("교과군 이름이 중복되지 않는다")
+    func subjectAreasAreUnique() {
+        for revision in CurriculumRevision.allCases {
+            let areas = CurriculumPreset.electiveGroups(for: revision).map(\.subjectArea)
+            #expect(Set(areas).count == areas.count)
+        }
+    }
+
+    @Test("모든 교과군에 과목이 하나 이상 있다")
+    func everyGroupHasSubjects() {
+        for revision in CurriculumRevision.allCases {
+            for group in CurriculumPreset.electiveGroups(for: revision) {
+                #expect(!group.allNames.isEmpty, "\(group.subjectArea)가 비어 있습니다")
+            }
+        }
+    }
+
+    @Test("과목명 앞뒤에 공백이 없다")
+    func namesAreTrimmed() {
+        for revision in CurriculumRevision.allCases {
+            for name in CurriculumPreset.suggestedElectiveNames(for: revision) {
+                #expect(name == name.trimmingCharacters(in: .whitespacesAndNewlines), "'\(name)'")
+            }
+        }
+    }
+
+    @Test("2022 개정에는 융합 선택이 있고, 2015 개정에는 없다")
+    func fusionOnlyIn2022() {
+        let fusion2022 = CurriculumPreset.electiveGroups(for: .revision2022)
+            .flatMap { $0.names(of: .fusion) }
+        #expect(!fusion2022.isEmpty)
+
+        let fusion2015 = CurriculumPreset.electiveGroups(for: .revision2015)
+            .flatMap { $0.names(of: .fusion) }
+        #expect(fusion2015.isEmpty, "2015 개정에는 융합 선택 구분이 없습니다")
+    }
+
+    @Test("2022 개정 사회·과학 융합선택 9과목이 카탈로그에 있다")
+    func fusionElectivesArePresent() {
+        let names = CurriculumPreset.suggestedElectiveNames(for: .revision2022)
+        for subject in CurriculumPreset.socialScienceFusionElectives2022 {
+            #expect(names.contains(subject), "'\(subject)'가 카탈로그에 없습니다")
+        }
+    }
+
+    @Test("사회·과학 융합선택은 성취도만 기재로 추정된다")
+    func fusionElectivesAreAchievementOnly() {
+        for subject in CurriculumPreset.socialScienceFusionElectives2022 {
+            #expect(
+                CurriculumPreset.suggestedEvaluationType(
+                    forSubjectNamed: subject, revision: .revision2022
+                ) == .achievementOnly
+            )
+        }
+    }
+
+    @Test("체육·예술·교양 과목은 성취도만 기재로 추정된다", arguments: [
+        "체육1", "스포츠 문화", "음악", "미술 창작", "진로와 직업", "논술",
+    ])
+    func peArtLiberalAreAchievementOnly(subject: String) {
+        #expect(
+            CurriculumPreset.suggestedEvaluationType(
+                forSubjectNamed: subject, revision: .revision2022
+            ) == .achievementOnly
+        )
+    }
+
+    @Test("일반 교과 선택과목은 판단을 보류한다 — 앱이 단정하지 않는다", arguments: [
+        "대수", "미적분Ⅰ", "물리학", "세계사", "문학",
+    ])
+    func regularSubjectsReturnNil(subject: String) {
+        #expect(
+            CurriculumPreset.suggestedEvaluationType(
+                forSubjectNamed: subject, revision: .revision2022
+            ) == nil
+        )
+    }
+
+    @Test("제2외국어 8개 언어가 모두 있다")
+    func hasAllSecondLanguages() {
+        #expect(CurriculumPreset.secondLanguages.count == 8)
+        let names = CurriculumPreset.suggestedElectiveNames(for: .revision2022)
+        for language in CurriculumPreset.secondLanguages {
+            #expect(names.contains(language))
+        }
+    }
+
+    @Test("제2외국어 파생 과목은 회화·심화·문화 셋이다")
+    func derivedNamesShape() {
+        for language in CurriculumPreset.secondLanguages {
+            let derived = CurriculumPreset.secondLanguageDerivedNames(for: language)
+            #expect(derived.count == 3, "\(language)")
+            #expect(derived[0] == "\(language) 회화")
+            #expect(derived[1] == "심화 \(language)")
+        }
+    }
+
+    @Test("문화 과목 이름의 불규칙 어미를 지킨다", arguments: [
+        ("중국어", "중국 문화"),
+        ("일본어", "일본 문화"),
+        ("독일어", "독일어권 문화"),
+        ("프랑스어", "프랑스어권 문화"),
+        ("베트남어", "베트남 문화"),
+    ])
+    func cultureNamesAreIrregular(language: String, expected: String) {
+        let derived = CurriculumPreset.secondLanguageDerivedNames(for: language)
+        #expect(derived.contains(expected), "\(language) → \(expected)")
+    }
+
+    @Test("모르는 언어에는 빈 배열을 준다")
+    func unknownLanguageReturnsEmpty() {
+        #expect(CurriculumPreset.secondLanguageDerivedNames(for: "이탈리아어").isEmpty)
+    }
+}

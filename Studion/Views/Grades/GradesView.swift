@@ -18,7 +18,7 @@ struct GradesView: View {
                     MockExamListView()
                 }
             }
-            .navigationTitle("성적")
+            .navigationTitle("기록")
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Picker("성적 구분", selection: $tab) {
