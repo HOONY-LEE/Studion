@@ -108,6 +108,10 @@ docs/tasks/            단계별 실행 스펙
 
 1차 개발 완료 이후 후보: **iPad 최적화 → 콘텐츠 시스템 → Android**.
 
+설계만 해둔 것 (미착수):
+- [문제집 공유](docs/08-question-bank.md) — 백엔드·검수 정책 미결정
+- [앱 차단(집중 모드)](docs/09-app-shield.md) — Apple entitlement 승인 필요
+
 플랫폼 순서는 iPhone에 집중하되, 데이터 모델과 도메인 로직은 처음부터 이식을 염두에 두고 설계한다.
 
 ---
