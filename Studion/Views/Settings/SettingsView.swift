@@ -14,6 +14,11 @@ struct SettingsView: View {
 
     @Query private var profiles: [AcademicProfile]
 
+    #if DEBUG
+    /// 개발자 도구에서 샘플 문제집 개수를 세기 위한 것. 삭제 후 즉시 갱신되도록 `@Query`를 쓴다.
+    @Query private var allQuestionSets: [QuestionSet]
+    #endif
+
     @State private var isConfirmingSignOut = false
     @State private var isExporting = false
     @State private var isImporting = false
@@ -32,6 +37,9 @@ struct SettingsView: View {
                 academicSection
                 subjectSection
                 dataSection
+                #if DEBUG
+                developerSection
+                #endif
             }
             .navigationTitle("설정")
             .onAppear(perform: ensureProfileExists)
@@ -217,6 +225,48 @@ struct SettingsView: View {
             Text("성적·계획·오답노트가 JSON 파일로 저장됩니다. 오답노트 사진은 용량 때문에 포함되지 않습니다.")
         }
     }
+
+    // MARK: - 개발자 도구 (DEBUG 전용)
+
+    #if DEBUG
+    /// 개발 중 화면을 확인하기 위한 도구. 출시본에는 이 섹션이 아예 컴파일되지 않는다.
+    ///
+    /// 문구를 `Text(verbatim:)`으로 쓰는 이유: 개발자용이라 번역할 필요가 없고,
+    /// String Catalog에 개발용 문자열이 섞여 들어가는 것을 막기 위함이다.
+    private var developerSection: some View {
+        Section {
+            Button {
+                SampleDataSeeder.seedQuestionSets(into: context)
+            } label: {
+                Label {
+                    Text(verbatim: "샘플 문제집 추가")
+                } icon: {
+                    Image(systemName: "wand.and.stars")
+                }
+            }
+
+            if sampleSetCount > 0 {
+                Button(role: .destructive) {
+                    SampleDataSeeder.removeSampleQuestionSets(from: context)
+                } label: {
+                    Label {
+                        Text(verbatim: "샘플 문제집 삭제 (\(sampleSetCount)개)")
+                    } icon: {
+                        Image(systemName: "trash")
+                    }
+                }
+            }
+        } header: {
+            Text(verbatim: "개발자 도구")
+        } footer: {
+            Text(verbatim: "이 섹션은 DEBUG 빌드에만 나타납니다. 학습 탭에 네 가지 문제 유형이 담긴 샘플 문제집 5개를 넣습니다.")
+        }
+    }
+
+    private var sampleSetCount: Int {
+        allQuestionSets.filter { $0.authorDisplayName == SampleDataSeeder.sampleMarker }.count
+    }
+    #endif
 
     // MARK: - 동작
 
