@@ -14,6 +14,12 @@ configs:
   Debug: debug
   Release: release
 
+packages:
+  # 개발자 탭(팀 내부 메신저) 전용. #if DEBUG로만 호출한다 — docs/10-developer-chat.md.
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: 2.5.1
+
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -49,6 +55,13 @@ targets:
         # CloudKit 원격 변경 수신용
         UIBackgroundModes:
           - remote-notification
+        # 개발자 탭(Debug 전용)용 Supabase 연결 정보. 호스트는 Config/DevChatSecrets*.xcconfig에서 온다.
+        # "https://"는 여기서 붙인다 — xcconfig 쪽에 두면 `//`가 주석으로 잘린다 (겪은 버그, docs/10 참고).
+        DevChatSupabaseURL: https://$(DEV_CHAT_SUPABASE_HOST)
+        DevChatSupabaseAnonKey: $(DEV_CHAT_SUPABASE_ANON_KEY)
+    dependencies:
+      - package: Supabase
+        product: Supabase
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.studion.app
@@ -68,6 +81,10 @@ targets:
         Release:
           CODE_SIGN_ENTITLEMENTS: Config/Studion.entitlements
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: CLOUD_SYNC
+    configFiles:
+      # Release는 이 xcconfig를 안 봐서 DEV_CHAT_* 변수가 빈 문자열로 남는다 —
+      # 어차피 Release 코드에서는 참조하지 않는다(전부 #if DEBUG).
+      Debug: Config/DevChatSecrets.xcconfig
 
   StudionTests:
     type: bundle.unit-test

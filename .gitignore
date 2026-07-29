@@ -25,6 +25,7 @@ Packages/
 .env
 .env.local
 secrets.xcconfig
+Config/DevChatSecrets.local.xcconfig
 
 # macOS
 .DS_Store

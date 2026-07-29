@@ -10,8 +10,49 @@ import SwiftUI
 ///   App Store 심사에서 문제가 되고, 이 앱의 원칙(채팅을 만들지 않는다)과도 어긋난다.
 ///   → `docs/10-developer-chat.md`
 struct DeveloperChatView: View {
+    @State private var authService: DevChatAuthService?
+
     var body: some View {
         NavigationStack {
+            content
+        }
+        .task {
+            if authService == nil {
+                authService = DevChatAuthService(client: DevChatClient.shared)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let authService {
+            switch authService.state {
+            case .loading:
+                ProgressView()
+                    .navigationTitle("개발자")
+
+            case .signedOut:
+                DevChatAuthView(authService: authService)
+
+            case .awaitingEmailConfirmation:
+                EmptyStateView(
+                    systemImage: "envelope.badge",
+                    title: "이메일을 확인해주세요",
+                    message: "가입한 이메일로 온 확인 링크를 눌러야 로그인할 수 있어요."
+                )
+                .navigationTitle("개발자")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("로그인 화면으로") {
+                            authService.returnToSignIn()
+                        }
+                    }
+                }
+
+            case .signedIn(let profile):
+                DevChatRoomListView(authService: authService, profile: profile)
+            }
+        } else {
             EmptyStateView(
                 systemImage: "bubble.left.and.bubble.right",
                 title: "메신저가 아직 연결되지 않았어요",

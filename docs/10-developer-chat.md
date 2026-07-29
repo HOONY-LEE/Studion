@@ -273,19 +273,23 @@ UI 문구 자체는 Release 번들에도 리소스로 남는다 — 기능은 �
 
 ### DevChatConfig — 자격 증명을 커밋하지 않는다
 
-```swift
-#if DEBUG
-enum DevChatConfig {
-    // xcconfig 또는 로컬 전용 plist에서 읽는다. 저장소에 실제 값을 커밋하지 않는다.
-    static let supabaseURL = URL(string: /* ... */)!
-    static let supabaseAnonKey = /* ... */
-}
-#endif
-```
+실제 구현: `Config/DevChatSecrets.xcconfig`(커밋, 값은 비어 있음)가
+`Config/DevChatSecrets.local.xcconfig`(gitignore 대상, 실제 값)를 `#include?`로 끌어오고,
+그 값을 Debug 전용 Info.plist 키(`DevChatSupabaseURL`/`DevChatSupabaseAnonKey`)로 흘려보낸다.
+`DevChatConfig`는 `Bundle.main`에서 그 키를 읽기만 한다 — 값이 없으면 `nil`을 반환하고,
+그러면 `DevChatClient.shared`도 `nil`이 되어 개발자 탭은 안내 화면만 보여준다(크래시하지 않는다).
 
 `AGENTS.md`의 "비밀값을 커밋하지 않는다" 규칙 그대로 — anon key는 공개돼도 RLS가 지켜주는
 설계지만(Supabase의 표준 모델), 그래도 저장소에는 두지 않고 로컬 설정 파일(`.gitignore` 대상)로
 분리한다.
+
+**겪은 버그 — xcconfig의 `//` 주석 규칙.** `DevChatSecrets.local.xcconfig`에
+`DEV_CHAT_SUPABASE_URL = https://xxx.supabase.co`라고 그대로 쓰면 xcconfig가 `//`를
+(문자열 안이든 어디든) 주석 시작으로 읽어 값이 `https:`로 잘린다. 그 결과 앱이
+"개발자" 탭을 열자마자 `SupabaseClient` 초기화에서 `Fatal error: supabaseURL must have a
+valid host`로 즉시 크래시했다 — 시뮬레이터에서 탭을 눌렀는데 홈 화면으로 튕기는
+증상으로 나타났다. `https:$()//host`처럼 빈 매크로 참조 `$()`로 슬래시 두 개를
+갈라놓아야 한다.
 
 ---
 
