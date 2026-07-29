@@ -33,8 +33,12 @@ struct RootView: View {
             GradesView()
                 .tabItem { Label("기록", systemImage: "chart.bar") }
 
+            #if DEBUG
+            // 개발 기간 팀 내부용. 학생 대상 기능이 아니므로 Release에는 컴파일되지 않는다.
+            // → docs/10-developer-chat.md, docs/00-product-principles.md 원칙 3
             DeveloperChatView()
                 .tabItem { Label("개발자", systemImage: "bubble.left.and.bubble.right") }
+            #endif
 
             SettingsView()
                 .tabItem { Label("설정", systemImage: "gearshape") }

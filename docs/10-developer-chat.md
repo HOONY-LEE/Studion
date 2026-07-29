@@ -1,0 +1,315 @@
+# 10. 개발자 탭 — 팀 내부 메신저
+
+> 이 문서는 `개발자` 탭의 데이터 모델과 동작을 정의한다.
+> [08](08-question-bank.md)(문제집 공유)과 이 문서 둘 다 Supabase를 쓰지만 **서로 다른 프로젝트,
+> 다른 목적**이다. 착각하지 않도록 여기서 분명히 한다 → §0.
+
+---
+
+## 0. 이게 뭐고, 뭐가 아닌가
+
+**개발 기간 동안 이 앱을 만드는 팀(개발자들)이 서로 연락하는 임시 도구.**
+학생 사용자를 위한 기능이 아니다.
+
+| | 이 기능 (개발자 메신저) | [08] 문제집 공유 |
+|---|---|---|
+| 사용자 | 앱 개발팀 (소수, 서로 아는 사람) | 학생·교사 (불특정 다수) |
+| 존재 기간 | 개발 기간만. 출시본에는 없음 | 출시 후에도 계속 |
+| 컨텐츠 | 자유 텍스트 채팅 | 구조화된 문제집 |
+| 검수 필요성 | 없음 (팀원끼리만) | 필요 (→ [08] §0, 신고+사후조치) |
+| Supabase 프로젝트 | **별도 프로젝트** 권장 (§7) | 별도 프로젝트 |
+
+**왜 원칙과 충돌하는데 만드는가** — [00](00-product-principles.md) 원칙 3은 "채팅을 만들지 않는다"고
+못박고 있다. 이건 그 원칙에 대한 **명시적 예외**이며, 예외가 성립하는 조건은:
+
+1. **DEBUG 빌드에서만 화면·로직이 컴파일된다** (`#if DEBUG`, → §6). Release(App Store 제출본)에는
+   이 기능의 Swift 코드가 없다.
+2. 학생 데이터가 아니다 — 팀원 본인들이 스스로 만드는 대화다.
+3. 이 예외를 근거로 학생 대상 채팅·소셜 기능을 만들지 않는다.
+
+**출시 체크리스트**: App Store 제출 직전, `project.yml`에서 `supabase-swift` 패키지 의존성 자체를
+제거한다 (§6에서 설명하는 이유로, `#if DEBUG`만으로는 서드파티 바이너리 링크까지는 못 뗀다).
+
+---
+
+## 1. 범위
+
+**들어가는 것**
+
+- 이메일/비밀번호로 팀원 계정 생성·로그인
+- 유저 검색 (표시 이름 또는 이메일 일부로)
+- 1:1 대화, 그룹 대화(채팅방) 생성
+- 기존 채팅방에 유저 초대
+- 텍스트 메시지 전송/수신 (실시간)
+- 애플 메시지와 비슷한 느낌의 UI (말풍선, 좌/우 정렬, 채팅방 목록)
+
+**안 들어가는 것 (1차)**
+
+- 이미지/파일 첨부 — 나중에 필요해지면 추가
+- 읽음 표시, 타이핑 인디케이터
+- 푸시 알림 — 앱을 열어야 확인 가능
+- 메시지 삭제/수정, 채팅방 나가기 (DB에서 수동으로 처리)
+- 프로필 사진
+- 팀원이 아닌 사람의 가입 차단 로직 (§7에서 논의 — 1차는 수동 관리)
+
+---
+
+## 2. 인증
+
+- Supabase Auth, **이메일/비밀번호** 방식.
+- 팀 내부용이라 소셜 로그인·매직링크는 필요 없다. 가장 단순한 방식으로 시작한다.
+- 가입 자체를 막지는 않는다 (Supabase 프로젝트 URL/키를 아는 사람만 접근 가능하다는 것이
+  1차 방어선). 실제로는 앱 내 개발자 탭에만 있는 기능이라 접근 자체가 제한적이다.
+- 세션은 Supabase SDK가 키체인에 보관, 자동 갱신.
+
+> 이 인증은 **Sign in with Apple(→ [06](06-sync-and-backup.md))과 완전히 별개**다.
+> 학생용 CloudKit 동기화 계정과 섞이지 않는다 — 개발자 탭은 자체 Supabase 세션을 쓴다.
+
+---
+
+## 3. 데이터 모델 (Supabase Postgres)
+
+테이블 이름에 `dev_` 접두사를 붙여, 나중에 [08]의 문제집 공유용 테이블과
+같은 프로젝트에 놓이더라도(권장하진 않지만) 헷갈리지 않게 한다.
+
+```sql
+-- 팀원 프로필. auth.users의 확장.
+create table dev_profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  display_name text not null,
+  created_at timestamptz not null default now()
+);
+
+-- 채팅방. 1:1도 그룹도 같은 테이블 — is_group으로 구분.
+create table dev_chat_rooms (
+  id uuid primary key default gen_random_uuid(),
+  name text,                       -- 그룹만 사용. 1:1은 상대방 이름을 클라이언트가 표시.
+  is_group boolean not null default false,
+  created_by uuid not null references dev_profiles(id),
+  created_at timestamptz not null default now()
+);
+
+-- 채팅방 소속. 초대 = 이 테이블에 행 추가.
+create table dev_chat_room_members (
+  room_id uuid not null references dev_chat_rooms(id) on delete cascade,
+  user_id uuid not null references dev_profiles(id) on delete cascade,
+  joined_at timestamptz not null default now(),
+  primary key (room_id, user_id)
+);
+
+-- 메시지.
+create table dev_messages (
+  id uuid primary key default gen_random_uuid(),
+  room_id uuid not null references dev_chat_rooms(id) on delete cascade,
+  sender_id uuid not null references dev_profiles(id),
+  body text not null check (char_length(body) between 1 and 4000),
+  created_at timestamptz not null default now()
+);
+
+create index dev_messages_room_created_idx on dev_messages (room_id, created_at);
+```
+
+### 회원가입 시 프로필 자동 생성
+
+```sql
+create function dev_handle_new_user() returns trigger as $$
+begin
+  insert into dev_profiles (id, display_name)
+  values (new.id, coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)));
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create trigger dev_on_auth_user_created
+  after insert on auth.users
+  for each row execute function dev_handle_new_user();
+```
+
+### 채팅방 생성을 원자적으로 — RPC 함수
+
+클라이언트에서 "방 만들기"와 "만든 사람을 멤버로 추가"를 각각 insert 두 번으로 하면
+그 사이에 RLS 때문에 실패할 수 있다 (방 select 정책이 "멤버인 방만"이라 방금 만든 방을
+자기 자신도 못 보는 순간이 생김). 하나의 `security definer` 함수로 묶는다.
+
+```sql
+create function dev_create_room(room_name text, is_group boolean, member_ids uuid[])
+returns uuid as $$
+declare
+  new_room_id uuid;
+begin
+  insert into dev_chat_rooms (name, is_group, created_by)
+  values (room_name, is_group, auth.uid())
+  returning id into new_room_id;
+
+  insert into dev_chat_room_members (room_id, user_id)
+  select new_room_id, unnest(array_append(member_ids, auth.uid()));
+
+  return new_room_id;
+end;
+$$ language plpgsql security definer;
+```
+
+클라이언트는 방을 직접 insert하지 않고 이 함수만 호출한다 (`supabase.rpc("dev_create_room", ...)`).
+초대(기존 방에 멤버 추가)는 §4의 RLS 정책이 허용하는 한 `dev_chat_room_members`에 직접 insert한다.
+
+---
+
+## 4. RLS (Row Level Security)
+
+전 테이블 `enable row level security` 후 아래 정책만 허용한다. 기본은 전면 차단.
+
+```sql
+alter table dev_profiles enable row level security;
+alter table dev_chat_rooms enable row level security;
+alter table dev_chat_room_members enable row level security;
+alter table dev_messages enable row level security;
+
+-- 프로필: 로그인한 사람은 전부 볼 수 있다 (유저 검색용). 본인 것만 수정.
+create policy "profiles are visible to authenticated users"
+  on dev_profiles for select to authenticated using (true);
+
+create policy "users can update own profile"
+  on dev_profiles for update to authenticated using (id = auth.uid());
+
+-- 채팅방: 멤버인 방만 보인다.
+create policy "members can view their rooms"
+  on dev_chat_rooms for select to authenticated using (
+    exists (
+      select 1 from dev_chat_room_members m
+      where m.room_id = id and m.user_id = auth.uid()
+    )
+  );
+
+-- 채팅방 멤버십: 같은 방 멤버만 멤버 목록을 본다. 초대는 기존 멤버만 할 수 있다.
+create policy "members can view room membership"
+  on dev_chat_room_members for select to authenticated using (
+    exists (
+      select 1 from dev_chat_room_members m
+      where m.room_id = dev_chat_room_members.room_id and m.user_id = auth.uid()
+    )
+  );
+
+create policy "existing members can invite others"
+  on dev_chat_room_members for insert to authenticated with check (
+    exists (
+      select 1 from dev_chat_room_members m
+      where m.room_id = dev_chat_room_members.room_id and m.user_id = auth.uid()
+    )
+  );
+
+-- 메시지: 멤버만 읽고, 멤버만(그리고 본인 이름으로만) 쓴다.
+create policy "members can read messages"
+  on dev_messages for select to authenticated using (
+    exists (
+      select 1 from dev_chat_room_members m
+      where m.room_id = dev_messages.room_id and m.user_id = auth.uid()
+    )
+  );
+
+create policy "members can send messages as themselves"
+  on dev_messages for insert to authenticated with check (
+    sender_id = auth.uid() and exists (
+      select 1 from dev_chat_room_members m
+      where m.room_id = dev_messages.room_id and m.user_id = auth.uid()
+    )
+  );
+```
+
+`dev_create_room` RPC는 `security definer`라 이 정책들을 우회해 방을 만들지만,
+그 안에서 하는 일(방 생성 + 생성자를 멤버로 추가)은 정확히 정책이 허용하는 범위와 같다.
+
+---
+
+## 5. 실시간
+
+Supabase Realtime의 `postgres_changes`로 `dev_messages` 테이블 insert를 구독한다.
+
+- 채팅방 상세 화면이 열려 있는 동안: `room_id = 현재 방`으로 필터링해 구독.
+- 채팅방 목록 화면: 내가 멤버인 모든 방의 새 메시지를 구독해 "마지막 메시지" 미리보기 갱신.
+  (1차 구현은 방 목록 화면 진입 시 폴링으로 시작해도 되고, 필요하면 여러 방을 한 번에
+  구독하는 것으로 넓힌다 — 처음부터 최적화하지 않는다.)
+
+푸시 알림은 범위 밖(§1). 앱이 포그라운드에 있을 때만 실시간 수신이 의미가 있다.
+
+---
+
+## 6. 클라이언트 구조
+
+```
+Studion/Utilities/DeveloperChat/          (전부 #if DEBUG)
+  ├─ DevChatConfig.swift                  Supabase URL/anon key. .gitignore 대상 (§7)
+  ├─ DevChatClient.swift                  SupabaseClient 싱글턴 래핑
+  ├─ DevChatAuthService.swift             가입/로그인/로그아웃/세션
+  ├─ DevChatRoomService.swift             방 생성(RPC 호출)/목록/초대
+  ├─ DevChatMessageService.swift          메시지 조회/전송/실시간 구독
+  └─ DevChatModels.swift                  DevProfile/DevChatRoom/DevMessage (Codable)
+
+Studion/Views/Developer/                  (전부 #if DEBUG)
+  ├─ DeveloperChatView.swift              루트 — 로그인 여부에 따라 분기
+  ├─ DevChatAuthView.swift                로그인/가입 폼
+  ├─ DevChatRoomListView.swift            채팅방 목록 ("애플 메시지" 목록과 같은 느낌)
+  ├─ DevUserSearchView.swift              유저 검색 → 방 만들기/초대
+  └─ DevChatRoomView.swift                대화 화면 (말풍선 UI)
+```
+
+기존 프로젝트 관례(순수 Swift 로직 vs SwiftUI 뷰 분리, → [01](01-architecture.md))를 따르되,
+이 기능 전체를 **다른 기능과 완전히 분리된 디렉터리**에 두는 이유는 하나다 — 나중에
+이 기능을 통째로 들어내야 할 때(§0의 출시 체크리스트) 다른 파일을 건드릴 일이 없게.
+
+### `#if DEBUG`로 못 막는 것 — 알아둘 점
+
+우리가 짠 Swift 코드는 `#if DEBUG`로 감싸면 Release 컴파일에서 완전히 빠진다
+(오답노트 샘플 데이터 시더 때 `strings`로 검증한 방식 그대로). 하지만 **`supabase-swift`
+패키지 자체**는 Xcode의 타깃-패키지 의존성이 빌드 구성(Debug/Release)별로 분리되지 않는
+구조라 Release 아카이브에도 정적으로 링크된다. 호출되는 코드가 없을 뿐 바이너리 크기는
+늘어난다는 뜻이다. 이걸 완전히 없애려면 출시 직전 `project.yml`에서 패키지 의존성 자체를
+지우고 재생성해야 한다 (§0 체크리스트).
+
+같은 이유로 **String Catalog(`Localizable.xcstrings`)의 키/번역 텍스트도 코드와는 별개다** —
+Xcode가 카탈로그를 `.strings` 리소스로 컴파일하는 과정은 어떤 Swift 파일이 그 키를
+실제로 참조하는지와 무관하게 카탈로그 전체를 변환한다. 즉 이 문서에서 쓰는 한국어/영어
+UI 문구 자체는 Release 번들에도 리소스로 남는다 — 기능은 없고 텍스트 데이터만 남는
+정도라 위험하지는 않지만, "완전히 흔적이 없다"는 뜻은 아니라는 걸 밝혀둔다.
+
+### DevChatConfig — 자격 증명을 커밋하지 않는다
+
+```swift
+#if DEBUG
+enum DevChatConfig {
+    // xcconfig 또는 로컬 전용 plist에서 읽는다. 저장소에 실제 값을 커밋하지 않는다.
+    static let supabaseURL = URL(string: /* ... */)!
+    static let supabaseAnonKey = /* ... */
+}
+#endif
+```
+
+`AGENTS.md`의 "비밀값을 커밋하지 않는다" 규칙 그대로 — anon key는 공개돼도 RLS가 지켜주는
+설계지만(Supabase의 표준 모델), 그래도 저장소에는 두지 않고 로컬 설정 파일(`.gitignore` 대상)로
+분리한다.
+
+---
+
+## 7. 시작하기 전에 필요한 것
+
+이 문서의 스키마·정책은 SQL 파일로 준비할 수 있지만, **실제로 동작하려면 Supabase
+프로젝트가 있어야 한다.** 다음이 없으면 §6 코드는 실행되지 않는다.
+
+1. **Supabase 프로젝트** — supabase.com에서 새로 만든다. **[08]의 문제집 공유용과는
+   별도 프로젝트를 권장한다** — 목적이 다르고(팀 내부 vs 사용자 대상), 나중에 이 기능을
+   통째로 지울 때 문제집 데이터에 영향이 없어야 하기 때문이다.
+2. **Project URL / anon key** — Settings → API에서 확인. `DevChatConfig`에 넣을 값.
+3. **§3의 SQL을 SQL Editor에서 실행** — 테이블/함수/정책 생성.
+4. **팀원 계정을 누가 셋업할지** — 1차는 각자 앱 안에서 가입 화면으로 만들면 된다
+   (§1에서 정한 대로 가입 자체는 막지 않으므로).
+
+이 네 가지가 준비되면 §6 구현(태스크 #30)에 들어간다.
+
+---
+
+## 8. 나중에 재검토할 것
+
+- 지금은 팀 규모가 작다는 전제로 "가입 제한 없음"을 택했다. 팀이 커지거나 프로젝트 URL이
+  새어나가는 게 걱정되면 이메일 도메인 화이트리스트를 `dev_handle_new_user()` 트리거에
+  추가한다.
+- 메시지 삭제/편집, 채팅방 나가기는 필요해지면 추가한다 — 지금은 "개발 중 소통"이 목적이라
+  과설계하지 않는다.

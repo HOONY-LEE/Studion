@@ -52,6 +52,13 @@ enum SampleDataSeeder {
         guard let sets = try? context.fetch(descriptor) else { return }
 
         for set in sets where set.authorDisplayName == sampleMarker {
+            // `@Relationship(deleteRule: .cascade)`가 있어도 명시적으로 지운다.
+            // 관계가 아직 페이징되지 않은 상태에서 부모만 지우면 자식이 남는
+            // 경우가 있어(관찰됨), 세이더처럼 저장 직후 지우는 경로에서는 안전하게
+            // 직접 지운다.
+            for question in set.questions ?? [] {
+                context.delete(question)
+            }
             context.delete(set)
         }
     }

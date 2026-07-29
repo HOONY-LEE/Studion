@@ -1,9 +1,12 @@
+#if DEBUG
 import SwiftUI
 
 /// 개발자 탭 — 개발 기간 동안 팀끼리 쓰는 메신저.
 ///
-/// - Important: 이 탭은 **학생 사용자를 위한 기능이 아니다.** 앱을 출시할 때는
-///   빼거나 접근을 막아야 한다. 미성년자 대상 앱에 열린 채팅이 남아 있으면
+/// - Important: 이 탭은 **학생 사용자를 위한 기능이 아니다.** 파일 전체를 `#if DEBUG`로
+///   감싸 Release(App Store 제출본)에는 이 타입 자체가 컴파일되지 않는다 — `RootView`가
+///   탭을 안 보여주는 것만으로는 부족하다(이 파일이 별도 컴파일 단위라 그것만으로는
+///   Release 빌드에서 여전히 컴파일된다). 미성년자 대상 앱에 채팅이 남아 있으면
 ///   App Store 심사에서 문제가 되고, 이 앱의 원칙(채팅을 만들지 않는다)과도 어긋난다.
 ///   → `docs/10-developer-chat.md`
 struct DeveloperChatView: View {
@@ -22,3 +25,4 @@ struct DeveloperChatView: View {
 #Preview {
     DeveloperChatView()
 }
+#endif

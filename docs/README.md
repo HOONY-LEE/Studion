@@ -17,6 +17,7 @@
 | [07-content-system-future.md](07-content-system-future.md) | 개발자 저작 콘텐츠 배포 (장기 로드맵, 미구현) | — |
 | [08-question-bank.md](08-question-bank.md) | 학습 탭 — 문제집·문제 카드, 채점 규칙, 공유 미결정 사항 | 학습 |
 | [09-app-shield.md](09-app-shield.md) | 앱 차단(집중 모드) — Screen Time API, 강도·탈출구, entitlement 선행 조건 | **미착수** |
+| [10-developer-chat.md](10-developer-chat.md) | 개발자 탭 — 팀 내부 메신저(Supabase). **학생 기능 아님, DEBUG 전용** | **설계만, 미착수** |
 
 ## 단계별 실행 스펙
 
