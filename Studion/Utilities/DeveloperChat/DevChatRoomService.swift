@@ -57,6 +57,23 @@ final class DevChatRoomService {
             let room_name: String?
             let is_group: Bool
             let member_ids: [String]
+
+            // `encode(to:)`를 직접 쓰면 컴파일러가 CodingKeys를 만들어주지 않으므로 직접 선언한다.
+            enum CodingKeys: String, CodingKey {
+                case room_name, is_group, member_ids
+            }
+
+            // `encode(to:)`를 직접 쓴다. 컴파일러가 만들어주는 구현은 옵셔널에
+            // `encodeIfPresent`를 써서 `room_name`이 nil이면 키를 아예 빼버린다.
+            // PostgREST는 넘어온 인자 이름으로 함수를 찾으므로, 1:1 방(이름 없음)을
+            // 만들 때 인자가 2개인 함수를 찾다가 실패한다 (겪은 버그).
+            // null을 명시적으로 실어 보내야 3개 인자 함수에 매칭된다.
+            func encode(to encoder: any Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(room_name, forKey: .room_name)
+                try container.encode(is_group, forKey: .is_group)
+                try container.encode(member_ids, forKey: .member_ids)
+            }
         }
         let params = Params(
             room_name: name,

@@ -38,13 +38,21 @@ create table dev_messages (
 create index dev_messages_room_created_idx on dev_messages (room_id, created_at);
 
 -- 회원가입 시 프로필 자동 생성.
-create function dev_handle_new_user() returns trigger as $$
+-- search_path를 명시하고 테이블을 스키마까지 적어야 한다 — 이 트리거는 auth 스키마
+-- 쪽 컨텍스트에서 실행되어, search_path를 안 정하면 "dev_profiles"를 못 찾아
+-- 가입 자체가 "Database error saving new user"로 실패한다 (겪은 버그).
+create function dev_handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
-  insert into dev_profiles (id, display_name)
+  insert into public.dev_profiles (id, display_name)
   values (new.id, coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)));
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 create trigger dev_on_auth_user_created
   after insert on auth.users
@@ -79,44 +87,45 @@ create policy "profiles are visible to authenticated users"
 create policy "users can update own profile"
   on dev_profiles for update to authenticated using (id = auth.uid());
 
+-- 멤버 여부 확인은 이 함수를 거친다 — dev_chat_room_members 정책이 자기 자신을
+-- 직접 조회하면 그 조회도 같은 정책을 다시 타서 무한 재귀가 된다 (겪은 버그).
+-- security definer 함수는 테이블 소유자 권한으로 실행되어 RLS를 다시 타지 않는다.
+create function dev_is_room_member(target_room_id uuid, target_user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from dev_chat_room_members
+    where room_id = target_room_id and user_id = target_user_id
+  );
+$$;
+
 create policy "members can view their rooms"
   on dev_chat_rooms for select to authenticated using (
-    exists (
-      select 1 from dev_chat_room_members m
-      where m.room_id = id and m.user_id = auth.uid()
-    )
+    dev_is_room_member(id, auth.uid())
   );
 
 create policy "members can view room membership"
   on dev_chat_room_members for select to authenticated using (
-    exists (
-      select 1 from dev_chat_room_members m
-      where m.room_id = dev_chat_room_members.room_id and m.user_id = auth.uid()
-    )
+    dev_is_room_member(room_id, auth.uid())
   );
 
 create policy "existing members can invite others"
   on dev_chat_room_members for insert to authenticated with check (
-    exists (
-      select 1 from dev_chat_room_members m
-      where m.room_id = dev_chat_room_members.room_id and m.user_id = auth.uid()
-    )
+    dev_is_room_member(room_id, auth.uid())
   );
 
 create policy "members can read messages"
   on dev_messages for select to authenticated using (
-    exists (
-      select 1 from dev_chat_room_members m
-      where m.room_id = dev_messages.room_id and m.user_id = auth.uid()
-    )
+    dev_is_room_member(room_id, auth.uid())
   );
 
 create policy "members can send messages as themselves"
   on dev_messages for insert to authenticated with check (
-    sender_id = auth.uid() and exists (
-      select 1 from dev_chat_room_members m
-      where m.room_id = dev_messages.room_id and m.user_id = auth.uid()
-    )
+    sender_id = auth.uid() and dev_is_room_member(room_id, auth.uid())
   );
 
 -- Realtime이 이 테이블의 변경을 방송하게 한다 (postgres_changes 구독용).

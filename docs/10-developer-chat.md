@@ -112,18 +112,30 @@ create index dev_messages_room_created_idx on dev_messages (room_id, created_at)
 ### 회원가입 시 프로필 자동 생성
 
 ```sql
-create function dev_handle_new_user() returns trigger as $$
+create function dev_handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
-  insert into dev_profiles (id, display_name)
+  insert into public.dev_profiles (id, display_name)
   values (new.id, coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)));
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 create trigger dev_on_auth_user_created
   after insert on auth.users
   for each row execute function dev_handle_new_user();
 ```
+
+**겪은 버그.** `set search_path = public`과 `public.dev_profiles`처럼 스키마를 명시하지
+않으면, 이 트리거가 `auth` 스키마 쪽 컨텍스트에서 실행될 때 `dev_profiles`를 못 찾아
+가입 자체가 실패한다 — Supabase Auth는 원인을 감추고 클라이언트에는 그냥
+"Database error saving new user"만 돌려준다. 이미 001_schema.sql을 실행한 프로젝트는
+`002_fix_new_user_trigger.sql`을 SQL Editor에서 한 번 더 실행하면 된다
+(`create or replace function`이라 트리거는 그대로 두고 함수 본문만 바뀐다).
 
 ### 채팅방 생성을 원자적으로 — RPC 함수
 
@@ -171,52 +183,60 @@ create policy "profiles are visible to authenticated users"
 create policy "users can update own profile"
   on dev_profiles for update to authenticated using (id = auth.uid());
 
+-- 멤버 여부 확인은 이 함수를 거친다 — dev_chat_room_members 정책이 자기 자신을
+-- 직접 조회하면 그 조회도 같은 정책을 다시 타서 "infinite recursion detected in
+-- policy for relation dev_chat_room_members"가 난다 (겪은 버그). security definer
+-- 함수는 테이블 소유자 권한으로 실행되어 RLS를 다시 타지 않으므로 재귀가 끊긴다.
+create function dev_is_room_member(target_room_id uuid, target_user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from dev_chat_room_members
+    where room_id = target_room_id and user_id = target_user_id
+  );
+$$;
+
 -- 채팅방: 멤버인 방만 보인다.
 create policy "members can view their rooms"
   on dev_chat_rooms for select to authenticated using (
-    exists (
-      select 1 from dev_chat_room_members m
-      where m.room_id = id and m.user_id = auth.uid()
-    )
+    dev_is_room_member(id, auth.uid())
   );
 
 -- 채팅방 멤버십: 같은 방 멤버만 멤버 목록을 본다. 초대는 기존 멤버만 할 수 있다.
 create policy "members can view room membership"
   on dev_chat_room_members for select to authenticated using (
-    exists (
-      select 1 from dev_chat_room_members m
-      where m.room_id = dev_chat_room_members.room_id and m.user_id = auth.uid()
-    )
+    dev_is_room_member(room_id, auth.uid())
   );
 
 create policy "existing members can invite others"
   on dev_chat_room_members for insert to authenticated with check (
-    exists (
-      select 1 from dev_chat_room_members m
-      where m.room_id = dev_chat_room_members.room_id and m.user_id = auth.uid()
-    )
+    dev_is_room_member(room_id, auth.uid())
   );
 
 -- 메시지: 멤버만 읽고, 멤버만(그리고 본인 이름으로만) 쓴다.
 create policy "members can read messages"
   on dev_messages for select to authenticated using (
-    exists (
-      select 1 from dev_chat_room_members m
-      where m.room_id = dev_messages.room_id and m.user_id = auth.uid()
-    )
+    dev_is_room_member(room_id, auth.uid())
   );
 
 create policy "members can send messages as themselves"
   on dev_messages for insert to authenticated with check (
-    sender_id = auth.uid() and exists (
-      select 1 from dev_chat_room_members m
-      where m.room_id = dev_messages.room_id and m.user_id = auth.uid()
-    )
+    sender_id = auth.uid() and dev_is_room_member(room_id, auth.uid())
   );
 ```
 
 `dev_create_room` RPC는 `security definer`라 이 정책들을 우회해 방을 만들지만,
 그 안에서 하는 일(방 생성 + 생성자를 멤버로 추가)은 정확히 정책이 허용하는 범위와 같다.
+
+**겪은 버그.** 처음 버전은 `dev_chat_room_members` 정책 안에서 `dev_chat_room_members`를
+`exists (select 1 from dev_chat_room_members m where ...)`로 직접 조회했다. RLS가 걸린
+테이블을 정책 **안에서** 다시 조회하면 그 조회에도 같은 정책이 적용되어 무한히 반복된다.
+이미 `001_schema.sql`을 실행한 프로젝트는 `003_fix_membership_recursion.sql`을 한 번 더
+실행한다 (기존 정책을 지우고 안전한 버전으로 다시 만든다).
 
 ---
 
