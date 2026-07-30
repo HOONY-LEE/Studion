@@ -21,6 +21,9 @@ final class DevChatStorage {
 
     func cached(_ path: String) -> Data? { cache[path] }
 
+    /// 방금 올린 파일을 미리 캐시에 넣어둔다 — 올린 직후 같은 바이트를 다시 내려받지 않는다.
+    func prime(path: String, data: Data) { cache[path] = data }
+
     func data(for path: String, client: SupabaseClient) async -> Data? {
         if let hit = cache[path] { return hit }
         if let running = inFlight[path] { return await running.value }

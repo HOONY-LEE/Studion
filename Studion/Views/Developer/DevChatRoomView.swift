@@ -49,6 +49,7 @@ struct DevChatRoomView: View {
 
     var body: some View {
         transcript
+            .safeAreaInset(edge: .top, spacing: 0) { realtimeBanner }
             .safeAreaInset(edge: .bottom, spacing: 0) { composer }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
@@ -153,6 +154,32 @@ struct DevChatRoomView: View {
     }
 
     private static let bottomMarker = "dev-chat-bottom"
+
+    /// 실시간 구독이 실패했음을 알리는 띠.
+    ///
+    /// 이게 없으면 상대 메시지가 안 오는 상황이 "조용한 방"과 똑같이 보인다 — 내가 보낸
+    /// 것은 (돌려받은 행을 바로 붙이므로) 잘 나타나서 더 헷갈린다.
+    @ViewBuilder
+    private var realtimeBanner: some View {
+        if let failure = messageService?.realtimeFailure {
+            HStack(spacing: 8) {
+                Image(systemName: "antenna.radiowaves.left.and.right.slash")
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("실시간 수신이 연결되지 않았어요")
+                        .font(.caption.bold())
+                    Text("새 메시지를 받으려면 방을 다시 열어주세요.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.bar)
+            .overlay(alignment: .bottom) { Divider() }
+            .accessibilityHint(Text(verbatim: failure))
+        }
+    }
 
     /// 아직 대화가 없는 방의 빈 상태 — WorkChat과 같은 종이비행기 안내.
     private var emptyConversation: some View {

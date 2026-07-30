@@ -2063,6 +2063,17 @@
         }
       }
     },
+    "새 메시지를 받으려면 방을 다시 열어주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reopen the conversation to receive new messages."
+          }
+        }
+      }
+    },
     "새 오답노트를 만들면 복습 일정이 잡힙니다.": {
       "localizations": {
         "en": {
@@ -2487,6 +2498,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Careless Mistake"
+          }
+        }
+      }
+    },
+    "실시간 수신이 연결되지 않았어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live updates aren't connected"
           }
         }
       }

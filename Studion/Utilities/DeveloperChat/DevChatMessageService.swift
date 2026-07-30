@@ -10,10 +10,13 @@ final class DevChatMessageService {
     /// 메시지 id → 리액션 알약 목록. 메시지와 따로 담는 이유는 리액션만 바뀔 때
     /// 메시지 배열을 건드리지 않아 말풍선 묶음(`DevChatLayout`)을 다시 계산하지 않기 위해서다.
     private(set) var reactions: [UUID: [DevReactionSummary]] = [:]
+    /// 실시간 구독이 실패했을 때의 사유. 화면에 띠로 알려 "조용한 방"과 구분한다.
+    private(set) var realtimeFailure: String?
 
     private let client: SupabaseClient
     private let myID: UUID
-    private var channel: RealtimeChannelV2?
+    private var messageChannel: RealtimeChannelV2?
+    private var reactionChannel: RealtimeChannelV2?
     private var listenTask: Task<Void, Never>?
 
     /// WorkChat 안드로이드/iOS 퀵 리액션과 동일한 구성.
@@ -81,7 +84,12 @@ final class DevChatMessageService {
             }
         }
 
-        try await client
+        // 넣은 행을 돌려받아 바로 목록에 붙인다.
+        //
+        // 실시간 수신에만 맡기면 **내가 보낸 메시지가 화면에 늦게(또는 아예 안) 뜬다** —
+        // 구독이 어떤 이유로든 끊겨 있으면 보낸 사람 화면에서만 사라진 것처럼 보인다.
+        // 실제로 겪었다(리액션 테이블이 발행 목록에 없어 채널 전체가 죽은 경우).
+        let inserted: DevMessage = try await client
             .from("dev_messages")
             .insert(NewMessage(
                 room_id: roomID.uuidString,
@@ -90,7 +98,11 @@ final class DevChatMessageService {
                 message_type: DevMessageType.text.rawValue,
                 reply_to_id: replyToID?.uuidString
             ))
+            .select()
+            .single()
             .execute()
+            .value
+        appendIfNew(inserted)
     }
 
     /// 사진/파일을 Storage에 올리고 그 경로를 담은 메시지를 만든다.
@@ -123,7 +135,7 @@ final class DevChatMessageService {
             let attachment_mime: String
         }
 
-        try await client
+        let inserted: DevMessage = try await client
             .from("dev_messages")
             .insert(NewAttachmentMessage(
                 room_id: roomID.uuidString,
@@ -135,7 +147,13 @@ final class DevChatMessageService {
                 attachment_size: data.count,
                 attachment_mime: mimeType
             ))
+            .select()
+            .single()
             .execute()
+            .value
+        // 방금 올린 바이트를 캐시에 미리 넣어둔다 — 다시 내려받지 않고 바로 보인다.
+        DevChatStorage.shared.prime(path: path, data: data)
+        appendIfNew(inserted)
     }
 
     // MARK: - 수정 / 삭제
@@ -258,60 +276,83 @@ final class DevChatMessageService {
 
     // MARK: - 실시간
 
-    /// `dev_messages`의 변경을 이 방으로 필터링해 구독한다.
-    /// 채널 등록은 `subscribeWithError()` 호출 **전**에 끝나야 한다.
+    /// 메시지와 리액션 변경을 구독한다.
+    ///
+    /// **메시지와 리액션을 서로 다른 채널에 둔다.** 한 채널에 얹으면 한쪽 구독이 잘못돼도
+    /// 채널 전체의 이벤트가 끊긴다 — 리액션 테이블을 Realtime 발행 목록에 넣지 않은 채
+    /// 같은 채널에 얹었더니, 구독은 성공했다고 나오면서 **메시지 이벤트까지 조용히
+    /// 오지 않았다**(실제로 겪은 버그, → `005_realtime_reactions.sql`).
+    /// 채널을 나누면 리액션 쪽이 죽어도 메시지는 계속 온다.
+    ///
+    /// 채널 등록(`postgresChange`)은 `subscribeWithError()` 호출 **전**에 끝나야 한다.
     func startListening(roomID: UUID) async {
         stopListening()
+        realtimeFailure = nil
 
-        let newChannel = client.channel("dev_messages:room_\(roomID.uuidString)")
-        let inserts = newChannel.postgresChange(
+        let messages = client.channel("dev_messages:room_\(roomID.uuidString)")
+        let inserts = messages.postgresChange(
             InsertAction.self,
             schema: "public",
             table: "dev_messages",
             filter: .eq("room_id", value: roomID.uuidString)
         )
         // 수정·삭제도 받아야 상대가 지운 메시지가 내 화면에서도 "삭제된 메시지"로 바뀐다.
-        let updates = newChannel.postgresChange(
+        let updates = messages.postgresChange(
             UpdateAction.self,
             schema: "public",
             table: "dev_messages",
             filter: .eq("room_id", value: roomID.uuidString)
         )
+
         // 리액션은 방으로 필터링할 수 없다(테이블에 room_id가 없다) — 전체를 받아
-        // 지금 보고 있는 메시지의 것만 반영한다.
-        let reactionInserts = newChannel.postgresChange(
+        // 지금 보고 있는 메시지의 것만 다시 읽는다.
+        let reactionsChannel = client.channel("dev_reactions:room_\(roomID.uuidString)")
+        let reactionInserts = reactionsChannel.postgresChange(
             InsertAction.self, schema: "public", table: "dev_message_reactions"
         )
-        let reactionDeletes = newChannel.postgresChange(
+        let reactionDeletes = reactionsChannel.postgresChange(
             DeleteAction.self, schema: "public", table: "dev_message_reactions"
         )
-        channel = newChannel
+
+        messageChannel = messages
+        reactionChannel = reactionsChannel
 
         listenTask = Task { [weak self] in
             guard let self else { return }
-            do {
-                try await newChannel.subscribeWithError()
-            } catch {
-                return
-            }
             await withTaskGroup(of: Void.self) { group in
-                // 디코딩까지 메인 액터에서 한다 — `decoder`가 메인 액터에 격리돼 있고,
-                // JSONDecoder를 여러 스레드에서 동시에 쓰는 것은 보장된 동작이 아니다.
                 group.addTask { [weak self] in
-                    for await insert in inserts {
-                        await self?.receiveInsert(insert)
+                    do {
+                        try await messages.subscribeWithError()
+                    } catch {
+                        // 메시지 구독 실패는 사용자에게 알린다 — 안 알리면 상대가 조용한
+                        // 것과 구분되지 않는다.
+                        await self?.reportRealtimeFailure(error)
+                        return
+                    }
+                    // 디코딩까지 메인 액터에서 한다 — `decoder`가 메인 액터에 격리돼 있고
+                    // JSONDecoder를 여러 스레드에서 동시에 쓰는 것은 보장된 동작이 아니다.
+                    await withTaskGroup(of: Void.self) { inner in
+                        inner.addTask { [weak self] in
+                            for await insert in inserts { await self?.receiveInsert(insert) }
+                        }
+                        inner.addTask { [weak self] in
+                            for await update in updates { await self?.receiveUpdate(update) }
+                        }
                     }
                 }
+
                 group.addTask { [weak self] in
-                    for await update in updates {
-                        await self?.receiveUpdate(update)
+                    // 리액션 구독이 실패해도 메시지는 계속 와야 하므로 여기서는 알리지 않는다.
+                    // 알약은 방을 다시 열 때 조회로 채워진다.
+                    guard (try? await reactionsChannel.subscribeWithError()) != nil else { return }
+                    await withTaskGroup(of: Void.self) { inner in
+                        inner.addTask { [weak self] in
+                            for await _ in reactionInserts { await self?.loadReactions() }
+                        }
+                        inner.addTask { [weak self] in
+                            for await _ in reactionDeletes { await self?.loadReactions() }
+                        }
                     }
-                }
-                group.addTask { [weak self] in
-                    for await _ in reactionInserts { await self?.loadReactions() }
-                }
-                group.addTask { [weak self] in
-                    for await _ in reactionDeletes { await self?.loadReactions() }
                 }
             }
         }
@@ -320,11 +361,16 @@ final class DevChatMessageService {
     func stopListening() {
         listenTask?.cancel()
         listenTask = nil
-        if let channel {
-            let client = self.client
+        let client = self.client
+        for channel in [messageChannel, reactionChannel].compactMap({ $0 }) {
             Task { await client.removeChannel(channel) }
         }
-        channel = nil
+        messageChannel = nil
+        reactionChannel = nil
+    }
+
+    private func reportRealtimeFailure(_ error: any Error) {
+        realtimeFailure = error.localizedDescription
     }
 
     private func receiveInsert(_ action: InsertAction) {

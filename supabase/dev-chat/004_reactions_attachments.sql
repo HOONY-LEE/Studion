@@ -47,6 +47,11 @@ create table if not exists dev_message_reactions (
 create index if not exists dev_message_reactions_message_idx
   on dev_message_reactions (message_id);
 
+-- Realtime이 이 테이블의 변경을 방송하게 한다.
+-- **빠뜨리면 안 된다** — 클라이언트가 구독하는 테이블이 발행 목록에 없으면 채널 구독
+-- 자체가 실패하고, 같은 채널의 dev_messages 구독까지 함께 죽는다 (실제로 겪은 버그).
+alter publication supabase_realtime add table dev_message_reactions;
+
 alter table dev_message_reactions enable row level security;
 
 -- 리액션은 그 메시지가 있는 방의 멤버만 보고 남길 수 있다.
