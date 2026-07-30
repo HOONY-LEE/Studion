@@ -13,6 +13,8 @@ struct PlannerTodayView: View {
     @Environment(\.calendar) private var calendar
 
     @Binding var selectedDate: Date
+    /// 상단 바의 + 가 눌렸다는 신호. 처리한 뒤 직접 끈다.
+    @Binding var addRequested: Bool
 
     @Query private var allEntries: [TimetableEntry]
     @Query private var allPlanItems: [PlanItem]
@@ -85,6 +87,17 @@ struct PlannerTodayView: View {
         .sheet(item: $editingItem) { item in
             PlanItemFormView(editing: item)
         }
+        .onChange(of: addRequested) { _, requested in
+            guard requested else { return }
+            addRequested = false
+            withAnimation(.easeInOut(duration: 0.2)) { isEditMode = true }
+            // 입력 줄이 올라오는 애니메이션이 끝난 뒤에 포커스를 준다 — 먼저 주면
+            // 키보드가 올라오다 말고 위치가 어긋난다.
+            Task {
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                isInlineFieldFocused = true
+            }
+        }
         .onAppear {
             if scrolledDayIndex == nil {
                 scrolledDayIndex = PlannerDateHelper.dayIndex(for: selectedDate, calendar: calendar)
@@ -103,6 +116,7 @@ struct PlannerTodayView: View {
                 .foregroundStyle(.tertiary)
             Spacer()
 
+            // 추가는 상단 바의 + 가 맡는다. 여기에는 입력 중일 때 끝내는 버튼만 둔다.
             if isEditMode {
                 Button {
                     isInlineFieldFocused = false
@@ -116,21 +130,6 @@ struct PlannerTodayView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("추가 마치기")
-            } else {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { isEditMode = true }
-                    Task {
-                        try? await Task.sleep(nanoseconds: 350_000_000)
-                        isInlineFieldFocused = true
-                    }
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 16, weight: .semibold))
-                        .frame(width: 36, height: 36)
-                        .background(Circle().fill(Color(.secondarySystemFill)))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("할 일 추가")
             }
         }
     }
@@ -138,22 +137,19 @@ struct PlannerTodayView: View {
     /// 할 일 완료 비율. 목표 미달을 색으로 나무라지 않도록 채움만 accent로 두고
     /// 남은 부분은 중립 회색이다 (→ `docs/00-product-principles.md` 색채 원칙).
     private var progressBar: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color(.systemFill))
-                    Capsule()
-                        .fill(Color.accentColor)
-                        .frame(width: max(0, geo.size.width * progress))
-                        .animation(.easeInOut(duration: 0.3), value: progress)
-                }
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color(.systemFill))
+                Capsule()
+                    .fill(Color.accentColor)
+                    .frame(width: max(0, geo.size.width * progress))
+                    .animation(.easeInOut(duration: 0.3), value: progress)
             }
-            .frame(height: 6)
-
-            Text("할 일 \(totalCount)개 중 \(completedCount)개 완료")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
+        .frame(height: 6)
+        // 바만으로는 무엇을 나타내는지 화면에서 읽히지 않으므로 음성 안내에는 남긴다.
+        .accessibilityElement()
+        .accessibilityLabel("할 일 \(totalCount)개 중 \(completedCount)개 완료")
     }
 
     // MARK: - 좌우 페이징

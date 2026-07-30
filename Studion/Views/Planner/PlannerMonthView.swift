@@ -10,6 +10,8 @@ struct PlannerMonthView: View {
     @Environment(\.calendar) private var calendar
 
     @Binding var selectedDate: Date
+    /// 상단 바의 + 가 눌렸다는 신호. 처리한 뒤 직접 끈다.
+    @Binding var addRequested: Bool
 
     @State private var store = CalendarEventStore()
     @State private var scrolledMonthIndex: Int?
@@ -49,6 +51,13 @@ struct PlannerMonthView: View {
             Button("확인") { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
+        }
+        .onChange(of: addRequested) { _, requested in
+            guard requested else { return }
+            addRequested = false
+            // 넣을 수 있는 캘린더가 없으면(모두 읽기 전용) 폼을 열어봐야 저장이 안 된다.
+            guard store.access == .granted, store.canCreateEvents else { return }
+            isCreatingEvent = true
         }
     }
 
@@ -95,20 +104,6 @@ struct PlannerMonthView: View {
             .scrollTargetBehavior(.paging)
             .scrollPosition(id: $scrolledMonthIndex)
             .scrollIndicators(.hidden)
-        }
-        .safeAreaInset(edge: .bottom) {
-            if store.canCreateEvents {
-                Button {
-                    isCreatingEvent = true
-                } label: {
-                    Label("일정 추가", systemImage: "plus")
-                        .font(.system(size: 16, weight: .semibold))
-                        .frame(maxWidth: .infinity, minHeight: 48)
-                }
-                .buttonStyle(.borderedProminent)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-            }
         }
         .onAppear {
             if scrolledMonthIndex == nil {

@@ -8,11 +8,14 @@ struct PlannerWeekView: View {
     @Environment(\.calendar) private var calendar
 
     @Binding var selectedDate: Date
+    /// 상단 바의 + 가 눌렸다는 신호. 처리한 뒤 직접 끈다.
+    @Binding var addRequested: Bool
 
     @Query private var allEntries: [TimetableEntry]
     @Query private var allPlanItems: [PlanItem]
 
     @State private var scrolledDayIndex: Int?
+    @State private var isAddingItem = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,6 +24,15 @@ struct PlannerWeekView: View {
             dateNumbers
             Divider()
             dayPager
+        }
+        // 주간에는 일간 같은 인라인 입력 줄이 없으므로 폼을 띄운다.
+        .sheet(isPresented: $isAddingItem) {
+            PlanItemFormView(defaultDate: selectedDate)
+        }
+        .onChange(of: addRequested) { _, requested in
+            guard requested else { return }
+            addRequested = false
+            isAddingItem = true
         }
         .onAppear {
             if scrolledDayIndex == nil {

@@ -35,6 +35,11 @@ struct PlannerView: View {
     @State private var selectedDate = Date()
     @State private var isPickingDate = false
     @State private var isShowingTimetable = false
+    /// 상단 + 를 누르면 켜지고, 각 보기가 자기 방식으로 처리한 뒤 스스로 끈다.
+    ///
+    /// "추가"의 의미가 보기마다 다르기 때문에 상단 바가 직접 시트를 띄우지 않는다 —
+    /// 일간은 아래에서 입력 줄이 올라오고, 주간은 할 일 폼, 월간은 일정 폼이다.
+    @State private var addRequested = false
 
     var body: some View {
         NavigationStack {
@@ -47,11 +52,11 @@ struct PlannerView: View {
                 Group {
                     switch mode {
                     case .today:
-                        PlannerTodayView(selectedDate: $selectedDate)
+                        PlannerTodayView(selectedDate: $selectedDate, addRequested: $addRequested)
                     case .week:
-                        PlannerWeekView(selectedDate: $selectedDate)
+                        PlannerWeekView(selectedDate: $selectedDate, addRequested: $addRequested)
                     case .month:
-                        PlannerMonthView(selectedDate: $selectedDate)
+                        PlannerMonthView(selectedDate: $selectedDate, addRequested: $addRequested)
                     }
                 }
             }
@@ -131,6 +136,15 @@ struct PlannerView: View {
             }
             .buttonStyle(PlannerPillButtonStyle())
             .accessibilityLabel("보기 바꾸기")
+
+            Button {
+                addRequested = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 17, weight: .semibold))
+            }
+            .buttonStyle(PlannerPillButtonStyle())
+            .accessibilityLabel(mode == .month ? "일정 추가" : "할 일 추가")
         }
         .tint(.primary)
     }
