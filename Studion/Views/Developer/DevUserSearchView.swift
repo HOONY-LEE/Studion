@@ -28,8 +28,11 @@ struct DevUserSearchView: View {
                 Button {
                     startConversation(with: user)
                 } label: {
-                    Text(verbatim: user.displayName)
+                    row(for: user)
                 }
+                // List 안의 Button은 기본 스타일이 라벨 전체를 accentColor로 물들인다 —
+                // .plain으로 꺼야 안의 Text에 준 foregroundStyle이 실제로 적용된다.
+                .buttonStyle(.plain)
             }
             .searchable(text: $query, prompt: "표시 이름 검색")
             .navigationTitle("팀원 찾기")
@@ -52,6 +55,26 @@ struct DevUserSearchView: View {
                 Text(errorMessage ?? "")
             }
         }
+    }
+
+    /// 대화 목록 행과 같은 구성 — 아바타 + 이름 + 이메일. 이름은 Button 기본 틴트(accentColor)
+    /// 대신 일반 텍스트 색으로 보이도록 `.foregroundStyle(.primary)`를 명시한다.
+    private func row(for user: DevProfile) -> some View {
+        HStack(spacing: 12) {
+            DevChatAvatar(displayName: user.displayName, diameter: 44)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(verbatim: user.displayName)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.primary)
+                if let email = user.email, !email.isEmpty {
+                    Text(verbatim: email)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     private var errorAlertBinding: Binding<Bool> {

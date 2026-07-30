@@ -66,7 +66,6 @@ struct DevChatRoomListView: View {
                 ContentUnavailableView.search(text: searchText)
             }
         }
-        .navigationTitle("개발자")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button("로그아웃") {

@@ -77,6 +77,7 @@
 create table dev_profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null,
+  email text,                      -- 팀원 찾기 목록에 표시. `006_add_profile_email.sql` 참고.
   created_at timestamptz not null default now()
 );
 
@@ -119,8 +120,12 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.dev_profiles (id, display_name)
-  values (new.id, coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)));
+  insert into public.dev_profiles (id, display_name, email)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
+    new.email
+  );
   return new;
 end;
 $$;

@@ -13,8 +13,6 @@ struct PlannerTodayView: View {
     @Environment(\.calendar) private var calendar
 
     @Binding var selectedDate: Date
-    /// 상단 바의 + 가 눌렸다는 신호. 처리한 뒤 직접 끈다.
-    @Binding var addRequested: Bool
 
     @Query private var allEntries: [TimetableEntry]
     @Query private var allPlanItems: [PlanItem]
@@ -22,7 +20,11 @@ struct PlannerTodayView: View {
     @State private var isEditMode = false
     @State private var inlineTitle = ""
     @State private var editingItem: PlanItem?
-    @State private var scrolledDayIndex: Int?
+    /// 지금 보고 있는 페이지. 선언 시점에 오늘로 맞춰 첫 화면부터 오늘이 보이게 한다.
+    @State private var selectedDayIndex =
+        PlannerDateHelper.dayIndex(for: Date(), calendar: .current)
+    /// 페이지 범위의 기준일. 범위 끝에 다다르면 여기를 옮겨 범위를 다시 잡는다.
+    @State private var anchorDate = Calendar.current.startOfDay(for: Date())
     @FocusState private var isInlineFieldFocused: Bool
 
     private var today: Date { PlannerDateHelper.startOfDay(Date(), calendar: calendar) }
@@ -87,22 +89,6 @@ struct PlannerTodayView: View {
         .sheet(item: $editingItem) { item in
             PlanItemFormView(editing: item)
         }
-        .onChange(of: addRequested) { _, requested in
-            guard requested else { return }
-            addRequested = false
-            withAnimation(.easeInOut(duration: 0.2)) { isEditMode = true }
-            // 입력 줄이 올라오는 애니메이션이 끝난 뒤에 포커스를 준다 — 먼저 주면
-            // 키보드가 올라오다 말고 위치가 어긋난다.
-            Task {
-                try? await Task.sleep(nanoseconds: 350_000_000)
-                isInlineFieldFocused = true
-            }
-        }
-        .onAppear {
-            if scrolledDayIndex == nil {
-                scrolledDayIndex = PlannerDateHelper.dayIndex(for: selectedDate, calendar: calendar)
-            }
-        }
     }
 
     private var header: some View {
@@ -116,7 +102,6 @@ struct PlannerTodayView: View {
                 .foregroundStyle(.tertiary)
             Spacer()
 
-            // 추가는 상단 바의 + 가 맡는다. 여기에는 입력 중일 때 끝내는 버튼만 둔다.
             if isEditMode {
                 Button {
                     isInlineFieldFocused = false
@@ -126,11 +111,31 @@ struct PlannerTodayView: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.white)
                         .frame(width: 36, height: 36)
-                        .background(Circle().fill(Color.accentColor))
+                        .glassCircle(tint: .accentColor)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("추가 마치기")
+            } else {
+                Button(action: beginAdding) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color(.label))
+                        .frame(width: 36, height: 36)
+                        .glassCircle(tint: Color(.secondarySystemFill))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("할 일 추가")
             }
+        }
+    }
+
+    private func beginAdding() {
+        withAnimation(.easeInOut(duration: 0.2)) { isEditMode = true }
+        // 입력 줄이 올라오는 애니메이션이 끝난 뒤에 포커스를 준다 — 먼저 주면 키보드가
+        // 올라오다 말고 위치가 어긋난다.
+        Task {
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            isInlineFieldFocused = true
         }
     }
 
@@ -154,40 +159,51 @@ struct PlannerTodayView: View {
 
     // MARK: - 좌우 페이징
 
+    /// 좌우로 넘겨 날짜를 옮긴다.
+    ///
+    /// `ScrollView` + `scrollPosition`이 아니라 `TabView`의 페이지 스타일을 쓴다.
+    /// 스크롤 위치로 페이지를 맞추면 LazyHStack이 아직 만들지 않은 페이지의 크기를
+    /// **추정**해서 옆 페이지에 가서 서는 문제가 있었다(오늘로 맞췄는데 이틀 뒤가 보였다).
+    /// TabView는 선택을 태그로 직접 잡으므로 그런 어긋남이 생기지 않는다.
     private var dayPager: some View {
-        GeometryReader { geo in
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 0) {
-                    ForEach(pageRange, id: \.self) { index in
-                        page(for: PlannerDateHelper.date(forDayIndex: index, calendar: calendar))
-                            .frame(width: geo.size.width, height: geo.size.height)
-                            .id(index)
-                    }
-                }
-                .scrollTargetLayout()
+        TabView(selection: $selectedDayIndex) {
+            ForEach(pageRange, id: \.self) { index in
+                page(for: PlannerDateHelper.date(forDayIndex: index, calendar: calendar))
+                    .tag(index)
             }
-            .scrollTargetBehavior(.paging)
-            .scrollPosition(id: $scrolledDayIndex)
-            .scrollIndicators(.hidden)
         }
-        .onChange(of: scrolledDayIndex) { _, newValue in
-            guard let newValue,
-                  newValue != PlannerDateHelper.dayIndex(for: selectedDate, calendar: calendar)
-            else { return }
-            selectedDate = PlannerDateHelper.date(forDayIndex: newValue, calendar: calendar)
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .onChange(of: selectedDayIndex) { _, newValue in
+            let date = PlannerDateHelper.date(forDayIndex: newValue, calendar: calendar)
+            guard !PlannerDateHelper.isSameDay(date, selectedDate, calendar: calendar) else { return }
+            selectedDate = date
             // 날짜를 넘기면 입력 중이던 추가 행을 닫는다 — 어느 날에 넣는지 헷갈린다.
             if isEditMode { isEditMode = false }
         }
         .onChange(of: selectedDate) { _, newValue in
             let index = PlannerDateHelper.dayIndex(for: newValue, calendar: calendar)
-            if scrolledDayIndex != index { scrolledDayIndex = index }
+            if selectedDayIndex != index { selectedDayIndex = index }
+            recenterIfNeeded(around: newValue)
         }
     }
 
-    /// 앞뒤 10년. 이보다 멀리 갈 일은 날짜 선택으로 뛴다.
+    /// 페이지 범위의 중심. 좌우로 넘겨도 바뀌지 않고, 멀리 뛸 때만 다시 잡는다.
     private var pageRange: ClosedRange<Int> {
-        let center = PlannerDateHelper.dayIndex(for: today, calendar: calendar)
-        return (center - 3650)...(center + 3650)
+        let center = PlannerDateHelper.dayIndex(for: anchorDate, calendar: calendar)
+        return (center - Self.pageRadius)...(center + Self.pageRadius)
+    }
+
+    /// 앞뒤로 둘 날짜 수. 앞뒤 10년(7301장)을 한꺼번에 두면 TabView가 그만큼의 페이지를
+    /// 들고 있어야 해서 무겁다. 이 범위를 벗어나면 아래에서 중심을 다시 잡는다.
+    private static let pageRadius = 60
+
+    /// 고른 날짜가 범위 가장자리에 가까우면 그 날짜를 중심으로 범위를 다시 잡는다.
+    /// 날짜 선택으로 멀리 뛰었을 때 빈 화면이 되지 않게 한다.
+    private func recenterIfNeeded(around date: Date) {
+        let index = PlannerDateHelper.dayIndex(for: date, calendar: calendar)
+        let center = PlannerDateHelper.dayIndex(for: anchorDate, calendar: calendar)
+        guard abs(index - center) > Self.pageRadius - 7 else { return }
+        anchorDate = PlannerDateHelper.startOfDay(date, calendar: calendar)
     }
 
     @ViewBuilder

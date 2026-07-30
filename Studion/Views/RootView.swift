@@ -22,23 +22,24 @@ struct RootView: View {
             .environment(\.locale, language.locale ?? Locale.autoupdatingCurrent)
     }
 
+    /// 캘린더와 오늘 할 일은 **다른 데이터**라 탭을 나눈다 — 캘린더는 기기의 캘린더 일정,
+    /// 오늘 할 일은 앱이 들고 있는 할 일과 시간표다 (Gradin과 같은 구성).
+    ///
+    /// 팀 메신저는 탭이 아니라 **설정 > 개발자 도구** 안에 있다. 탭바에 두면 학생이 쓰는
+    /// 기능처럼 보인다.
     private var tabs: some View {
         TabView {
-            PlannerView()
-                .tabItem { Label("플래너", systemImage: "calendar") }
+            CalendarTabView()
+                .tabItem { Label("캘린더", systemImage: "calendar") }
+
+            TodayTabView()
+                .tabItem { Label("오늘 할 일", systemImage: "checklist") }
 
             LearnView()
                 .tabItem { Label("학습", systemImage: "rectangle.stack") }
 
             GradesView()
-                .tabItem { Label("기록", systemImage: "chart.bar") }
-
-            #if DEBUG
-            // 개발 기간 팀 내부용. 학생 대상 기능이 아니므로 Release에는 컴파일되지 않는다.
-            // → docs/10-developer-chat.md, docs/00-product-principles.md 원칙 3
-            DeveloperChatView()
-                .tabItem { Label("개발자", systemImage: "message") }
-            #endif
+                .tabItem { Label("기록", systemImage: "book.closed") }
 
             SettingsView()
                 .tabItem { Label("설정", systemImage: "gearshape") }

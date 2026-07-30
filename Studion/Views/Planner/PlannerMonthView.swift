@@ -14,7 +14,9 @@ struct PlannerMonthView: View {
     @Binding var addRequested: Bool
 
     @State private var store = CalendarEventStore()
-    @State private var scrolledMonthIndex: Int?
+    @State private var selectedMonthIndex =
+        PlannerDateHelper.monthIndex(for: Date(), calendar: .current)
+    @State private var anchorDate = Date()
     @State private var editingEvent: CalendarEvent?
     @State private var isCreatingEvent = false
     @State private var errorMessage: String?
@@ -89,30 +91,17 @@ struct PlannerMonthView: View {
 
     // MARK: - 달 넘기기
 
+    /// 좌우로 넘겨 달을 옮긴다 (페이징 방식의 이유는 PlannerTodayView와 같다).
     private var monthPager: some View {
-        GeometryReader { geo in
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 0) {
-                    ForEach(pageRange, id: \.self) { index in
-                        monthPage(monthIndex: index)
-                            .frame(width: geo.size.width, height: geo.size.height)
-                            .id(index)
-                    }
-                }
-                .scrollTargetLayout()
-            }
-            .scrollTargetBehavior(.paging)
-            .scrollPosition(id: $scrolledMonthIndex)
-            .scrollIndicators(.hidden)
-        }
-        .onAppear {
-            if scrolledMonthIndex == nil {
-                scrolledMonthIndex = PlannerDateHelper.monthIndex(for: selectedDate, calendar: calendar)
+        TabView(selection: $selectedMonthIndex) {
+            ForEach(pageRange, id: \.self) { index in
+                monthPage(monthIndex: index)
+                    .tag(index)
             }
         }
-        .onChange(of: scrolledMonthIndex) { _, newValue in
-            guard let newValue,
-                  newValue != PlannerDateHelper.monthIndex(for: selectedDate, calendar: calendar)
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .onChange(of: selectedMonthIndex) { _, newValue in
+            guard newValue != PlannerDateHelper.monthIndex(for: selectedDate, calendar: calendar)
             else { return }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
@@ -127,13 +116,20 @@ struct PlannerMonthView: View {
         }
         .onChange(of: selectedDate) { _, newValue in
             let index = PlannerDateHelper.monthIndex(for: newValue, calendar: calendar)
-            if scrolledMonthIndex != index { scrolledMonthIndex = index }
+            if selectedMonthIndex != index { selectedMonthIndex = index }
+            let center = PlannerDateHelper.monthIndex(for: anchorDate, calendar: calendar)
+            if abs(index - center) > Self.pageRadius - 3 {
+                anchorDate = newValue
+            }
         }
     }
 
+    /// 앞뒤로 둘 달 수.
+    private static let pageRadius = 36
+
     private var pageRange: ClosedRange<Int> {
-        let center = PlannerDateHelper.monthIndex(for: Date(), calendar: calendar)
-        return (center - 600)...(center + 600)
+        let center = PlannerDateHelper.monthIndex(for: anchorDate, calendar: calendar)
+        return (center - Self.pageRadius)...(center + Self.pageRadius)
     }
 
     // MARK: - 한 달

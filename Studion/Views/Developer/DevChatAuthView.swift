@@ -54,7 +54,7 @@ struct DevChatAuthView: View {
                 .disabled(!canSubmit || isSubmitting)
             }
         }
-        .navigationTitle("개발자")
+        .navigationTitle("팀 메신저")
         .navigationBarTitleDisplayMode(.inline)
     }
 

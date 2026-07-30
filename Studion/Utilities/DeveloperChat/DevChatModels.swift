@@ -5,11 +5,14 @@ import Foundation
 struct DevProfile: Codable, Identifiable, Hashable {
     let id: UUID
     var displayName: String
+    /// `006_add_profile_email.sql` 이전에 만든 서버에는 이 컬럼이 없을 수 있어 옵셔널로 둔다.
+    var email: String?
     var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
         case id
         case displayName = "display_name"
+        case email
         case createdAt = "created_at"
     }
 }
