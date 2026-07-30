@@ -1203,6 +1203,17 @@
         }
       }
     },
+    "두 번 탭하면 뒤집힙니다": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double tap to flip"
+          }
+        }
+      }
+    },
     "뒷면": {
       "localizations": {
         "en": {
@@ -1585,6 +1596,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Question Content"
+          }
+        }
+      }
+    },
+    "문제 면": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Question side"
           }
         }
       }
@@ -3879,6 +3901,17 @@
         }
       }
     },
+    "정답 면": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Answer side"
+          }
+        }
+      }
+    },
     "정답 추가": {
       "localizations": {
         "en": {
@@ -4302,6 +4335,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Calendar access is off"
+          }
+        }
+      }
+    },
+    "탭하면 문제로 돌아가요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to go back"
+          }
+        }
+      }
+    },
+    "탭해서 답 확인": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to reveal"
           }
         }
       }

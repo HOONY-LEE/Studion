@@ -50,7 +50,38 @@ struct QuizSessionView: View {
 
     // MARK: - 문제 화면
 
+    @ViewBuilder
     private func questionCard(_ question: Question) -> some View {
+        if question.type == .flashcard {
+            flashcardLayout(question)
+        } else {
+            gradedLayout(question)
+        }
+    }
+
+    /// 플래시카드 — 카드 한 장과 자기 평가만 둔다.
+    private func flashcardLayout(_ question: Question) -> some View {
+        VStack(spacing: 0) {
+            ProgressView(value: Double(currentIndex), total: Double(max(queue.count, 1)))
+                .padding(.horizontal)
+
+            Text("\(currentIndex + 1) / \(queue.count)")
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .padding(.top, 8)
+
+            Spacer(minLength: 12)
+
+            FlashcardStudyView(question: question, hasRevealed: $isRevealed)
+
+            Spacer(minLength: 12)
+
+            bottomBar(question)
+        }
+    }
+
+    private func gradedLayout(_ question: Question) -> some View {
         VStack(spacing: 0) {
             ProgressView(value: Double(currentIndex), total: Double(max(queue.count, 1)))
                 .padding(.horizontal)
@@ -132,13 +163,8 @@ struct QuizSessionView: View {
             }
 
         case .flashcard:
-            if isRevealed {
-                Text(verbatim: question.flashcardBack)
-                    .font(.title3.weight(.medium))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                    .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
-            }
+            // 플래시카드는 `flashcardLayout`이 카드로 그린다. 여기로 오지 않는다.
+            EmptyView()
 
         case .fillInBlank, .shortAnswer:
             TextField("답 입력", text: $typedAnswer)
@@ -227,9 +253,8 @@ struct QuizSessionView: View {
         VStack(spacing: 8) {
             if !isRevealed {
                 if question.type == .flashcard {
-                    Button("답 보기") { reveal(question) }
-                        .buttonStyle(.borderedProminent)
-                        .frame(maxWidth: .infinity, minHeight: 44)
+                    // 카드를 뒤집는 것이 곧 "답 보기"다. 같은 일을 하는 버튼을 따로 두지 않는다.
+                    EmptyView()
                 } else {
                     Button("확인") { checkAnswer(question) }
                         .buttonStyle(.borderedProminent)
