@@ -1,24 +1,86 @@
 import SwiftUI
-import SwiftData
 import UIKit
 
-/// 플래너의 "월간" — Gradin 월간 뷰를 옮긴 것. 좌우로 달을 넘기고, 칸마다 그날의
-/// 시간표·할 일을 짧은 바로 보여준다.
+/// 플래너의 "월간" — **시스템 캘린더(iCloud 등) 일정**을 보여준다.
 ///
-/// Gradin에는 여러 날에 걸친 일정을 가로 바로 잇는 레이아웃 계산이 있는데, Studion에는
-/// **여러 날에 걸치는 항목이 없다** — 시간표는 매주 같은 요일의 시간 블록이고 할 일은
-/// 하루에 속한다. 그래서 그 계산은 옮기지 않았다(없는 경우를 위한 코드를 남기지 않는다).
+/// 일간·주간이 다루는 할 일·시간표와는 **다른 데이터**다. 월간은 캘린더 앱과 같은 일정을
+/// 그대로 비추고, 여기서 추가·수정한 일정도 기기 캘린더에 저장된다
+/// (→ `docs/03-domain-logic.md`, 권한 문구는 `project.yml`).
 struct PlannerMonthView: View {
     @Environment(\.calendar) private var calendar
 
     @Binding var selectedDate: Date
 
-    @Query private var allEntries: [TimetableEntry]
-    @Query private var allPlanItems: [PlanItem]
-
+    @State private var store = CalendarEventStore()
     @State private var scrolledMonthIndex: Int?
+    @State private var editingEvent: CalendarEvent?
+    @State private var isCreatingEvent = false
+    @State private var errorMessage: String?
 
     var body: some View {
+        Group {
+            switch store.access {
+            case .notDetermined:
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .denied:
+                accessDenied
+            case .granted:
+                monthPager
+            }
+        }
+        .task {
+            await store.requestAccess()
+            await store.loadMonth(containing: selectedDate, calendar: calendar)
+        }
+        // 다른 앱에서 일정을 바꾸면 알림이 온다 — 돌아왔을 때 옛 내용이 남지 않게 다시 읽는다.
+        .task {
+            for await _ in NotificationCenter.default.notifications(named: .EKEventStoreChanged) {
+                await store.reload(around: selectedDate, calendar: calendar)
+            }
+        }
+        .sheet(item: $editingEvent) { event in
+            CalendarEventFormView(store: store, editing: event, defaultDate: selectedDate)
+        }
+        .sheet(isPresented: $isCreatingEvent) {
+            CalendarEventFormView(store: store, editing: nil, defaultDate: selectedDate)
+        }
+        .alert("문제가 발생했어요", isPresented: errorBinding) {
+            Button("확인") { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "")
+        }
+    }
+
+    private var errorBinding: Binding<Bool> {
+        Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+    }
+
+    /// 권한이 없으면 달력을 채울 수 없다. 무엇이 막혔고 어디서 푸는지 알려준다.
+    private var accessDenied: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "calendar.badge.exclamationmark")
+                .font(.system(size: 44))
+                .foregroundStyle(.tertiary)
+            Text("캘린더 접근이 꺼져 있어요")
+                .font(.headline)
+            Text("월간 보기는 기기의 캘린더 일정을 보여줍니다. 설정에서 캘린더 접근을 켜주세요.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button("설정 열기") {
+                guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                UIApplication.shared.open(url)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - 달 넘기기
+
+    private var monthPager: some View {
         GeometryReader { geo in
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 0) {
@@ -34,6 +96,20 @@ struct PlannerMonthView: View {
             .scrollPosition(id: $scrolledMonthIndex)
             .scrollIndicators(.hidden)
         }
+        .safeAreaInset(edge: .bottom) {
+            if store.canCreateEvents {
+                Button {
+                    isCreatingEvent = true
+                } label: {
+                    Label("일정 추가", systemImage: "plus")
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+            }
+        }
         .onAppear {
             if scrolledMonthIndex == nil {
                 scrolledMonthIndex = PlannerDateHelper.monthIndex(for: selectedDate, calendar: calendar)
@@ -45,13 +121,14 @@ struct PlannerMonthView: View {
             else { return }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
 
-            // 넘긴 달이 이번 달이면 오늘로, 아니면 그 달 1일로 맞춘다 — 달을 오갈 때
-            // 오늘이 있는 달로 돌아오면 오늘이 선택돼 있는 게 자연스럽다.
+            // 넘긴 달이 이번 달이면 오늘로, 아니면 그 달 1일로 맞춘다.
             let monthStart = PlannerDateHelper.monthStart(forMonthIndex: newValue, calendar: calendar)
             let today = PlannerDateHelper.startOfDay(Date(), calendar: calendar)
             selectedDate = calendar.isDate(today, equalTo: monthStart, toGranularity: .month)
                 ? today
                 : monthStart
+
+            Task { await store.loadMonth(containing: monthStart, calendar: calendar) }
         }
         .onChange(of: selectedDate) { _, newValue in
             let index = PlannerDateHelper.monthIndex(for: newValue, calendar: calendar)
@@ -73,7 +150,7 @@ struct PlannerMonthView: View {
 
         return VStack(spacing: 0) {
             HStack {
-                // 연도는 상단 날짜 알약이 이미 보여주므로 큰 제목은 달만 (Gradin과 동일).
+                // 연도는 상단 날짜 알약이 이미 보여주므로 큰 제목은 달만.
                 Text(verbatim: monthStart.formatted(.dateTime.month(.wide)))
                     .font(.system(size: 34, weight: .bold))
                 Spacer()
@@ -100,22 +177,26 @@ struct PlannerMonthView: View {
                 }
             }
         }
+        .task(id: monthIndex) {
+            await store.loadMonth(containing: monthStart, calendar: calendar)
+        }
     }
 
-    /// 한 칸. 셀 높이에 따라 보여줄 바 개수를 정한다 — 주가 적은 달은 칸이 높아 더 담긴다.
     private func dayCell(_ day: Date, monthStart: Date, rowHeight: CGFloat) -> some View {
         let isCurrentMonth = calendar.isDate(day, equalTo: monthStart, toGranularity: .month)
         let isToday = calendar.isDateInToday(day)
         let isSelected = PlannerDateHelper.isSameDay(day, selectedDate, calendar: calendar)
         let weekday = calendar.component(.weekday, from: day)
-        // 날짜 숫자(30) + 여백을 뺀 높이를 바 높이(17)로 나눈다.
+        let events = store.events(on: day)
         let maxBars = max(0, Int((rowHeight - 38) / 17))
+        let overflow = events.count - maxBars
+        let visible = overflow > 0 ? max(maxBars - 1, 0) : events.count
 
         return VStack(spacing: 3) {
             Text("\(calendar.component(.day, from: day))")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(numberColor(isToday: isToday, isSelected: isSelected,
-                                             isCurrentMonth: isCurrentMonth, weekday: weekday))
+                .foregroundStyle(numberColor(isToday: isToday, isCurrentMonth: isCurrentMonth,
+                                             weekday: weekday))
                 .frame(width: 28, height: 28)
                 .background {
                     if isToday {
@@ -126,7 +207,33 @@ struct PlannerMonthView: View {
                 }
                 .padding(.top, 3)
 
-            bars(for: day, maxBars: maxBars)
+            VStack(alignment: .leading, spacing: 1) {
+                ForEach(events.prefix(visible)) { event in
+                    Button {
+                        // 읽기 전용 일정(공휴일 등)은 편집 화면을 열지 않는다.
+                        guard event.isEditable else { return }
+                        editingEvent = event
+                    } label: {
+                        Text(verbatim: event.title)
+                            .font(.system(size: 10, weight: .semibold))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .foregroundStyle(event.color)
+                            .padding(.horizontal, 3)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(event.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 3))
+                    }
+                    .buttonStyle(.plain)
+                }
+                if overflow > 0 {
+                    Text(verbatim: "+\(events.count - visible)")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.horizontal, 1)
 
             Spacer(minLength: 0)
         }
@@ -136,100 +243,133 @@ struct PlannerMonthView: View {
         .onTapGesture {
             selectedDate = PlannerDateHelper.startOfDay(day, calendar: calendar)
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(cellLabel(day, isToday: isToday))
-        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(cellLabel(day, isToday: isToday, eventCount: events.count))
     }
 
-    private func numberColor(
-        isToday: Bool, isSelected: Bool, isCurrentMonth: Bool, weekday: Int
-    ) -> Color {
+    private func numberColor(isToday: Bool, isCurrentMonth: Bool, weekday: Int) -> Color {
         if isToday { return .white }
         guard isCurrentMonth else { return .secondary }
-        return PlannerWeekdayHeader.color(weekday: weekday) == .secondary
-            ? .primary
-            : PlannerWeekdayHeader.color(weekday: weekday)
+        let weekendColor = PlannerWeekdayHeader.color(weekday: weekday)
+        return weekendColor == .secondary ? .primary : weekendColor
     }
 
-    /// 그날의 시간표와 할 일을 짧은 바로. 넘치면 "+n"으로 줄인다.
-    @ViewBuilder
-    private func bars(for day: Date, maxBars: Int) -> some View {
-        let weekday = PlannerDateHelper.calendarWeekday(of: day, calendar: calendar)
-        let entries = allEntries
-            .filter { $0.dayOfWeek == weekday }
-            .sorted {
-                PlannerDateHelper.minutesOfDay($0.startTime, calendar: calendar)
-                    < PlannerDateHelper.minutesOfDay($1.startTime, calendar: calendar)
-            }
-        let items = allPlanItems
-            .filter { PlannerDateHelper.isSameDay($0.date, day, calendar: calendar) }
-            .sorted { $0.createdAt < $1.createdAt }
-
-        let total = entries.count + items.count
-        let overflow = total - maxBars
-        let visible = overflow > 0 ? max(maxBars - 1, 0) : total
-
-        VStack(alignment: .leading, spacing: 1) {
-            ForEach(Array(barLabels(entries: entries, items: items).prefix(visible)), id: \.id) { bar in
-                Text(verbatim: bar.title)
-                    .font(.system(size: 10, weight: .semibold))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .foregroundStyle(bar.color)
-                    .strikethrough(bar.isDone)
-                    .padding(.horizontal, 3)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(bar.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 3))
-            }
-            if overflow > 0 {
-                Text(verbatim: "+\(total - visible)")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 3)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .padding(.horizontal, 1)
-    }
-
-    private struct Bar: Identifiable {
-        let id: String
-        let title: String
-        let color: Color
-        let isDone: Bool
-    }
-
-    private func barLabels(entries: [TimetableEntry], items: [PlanItem]) -> [Bar] {
-        entries.map { entry in
-            Bar(
-                id: "e\(entry.persistentModelID.hashValue)",
-                title: entry.title,
-                color: entry.type == .school ? Color("ScheduleSchool") : Color("ScheduleAcademy"),
-                isDone: false
-            )
-        } + items.map { item in
-            Bar(
-                id: "p\(item.persistentModelID.hashValue)",
-                title: item.title,
-                // 할 일은 accent로 두어 시간표와 구분한다.
-                color: .accentColor,
-                isDone: item.isDone
-            )
-        }
-    }
-
-    private func cellLabel(_ day: Date, isToday: Bool) -> String {
-        let date = day.formatted(.dateTime.month().day().weekday(.wide))
-        let weekday = PlannerDateHelper.calendarWeekday(of: day, calendar: calendar)
-        let entryCount = allEntries.filter { $0.dayOfWeek == weekday }.count
-        let itemCount = allPlanItems
-            .filter { PlannerDateHelper.isSameDay($0.date, day, calendar: calendar) }
-            .count
-
-        var parts = [date]
+    private func cellLabel(_ day: Date, isToday: Bool, eventCount: Int) -> String {
+        var parts = [day.formatted(.dateTime.month().day().weekday(.wide))]
         if isToday { parts.append(String(localized: "오늘")) }
-        if entryCount > 0 { parts.append("시간표 \(entryCount)개") }
-        if itemCount > 0 { parts.append("할 일 \(itemCount)개") }
+        if eventCount > 0 { parts.append("일정 \(eventCount)개") }
         return parts.joined(separator: ", ")
+    }
+}
+
+/// 일정 추가·수정. 반복 일정은 이 발생만 고친다 (→ `CalendarEventStore.save`).
+struct CalendarEventFormView: View {
+    let store: CalendarEventStore
+    let editing: CalendarEvent?
+    let defaultDate: Date
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.calendar) private var calendar
+
+    @State private var title = ""
+    @State private var start = Date()
+    @State private var end = Date()
+    @State private var isAllDay = false
+    @State private var isConfirmingDelete = false
+    @State private var errorMessage: String?
+
+    private var canSave: Bool { !title.trimmed.isEmpty }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("제목", text: $title)
+                    Toggle("종일", isOn: $isAllDay)
+                    DatePicker("시작", selection: $start,
+                               displayedComponents: isAllDay ? .date : [.date, .hourAndMinute])
+                    DatePicker("종료", selection: $end,
+                               displayedComponents: isAllDay ? .date : [.date, .hourAndMinute])
+                } footer: {
+                    if end < start {
+                        Text("종료가 시작보다 빠릅니다. 저장하면 시작 시각으로 맞춰집니다.")
+                    }
+                }
+
+                if editing != nil {
+                    Section {
+                        Button("일정 삭제", role: .destructive) {
+                            isConfirmingDelete = true
+                        }
+                    }
+                }
+            }
+            .navigationTitle(editing == nil ? "일정 추가" : "일정 편집")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("취소") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("저장") { save() }
+                        .disabled(!canSave)
+                }
+            }
+            .alert("일정을 삭제할까요?", isPresented: $isConfirmingDelete) {
+                Button("삭제", role: .destructive) { performDelete() }
+                Button("취소", role: .cancel) {}
+            } message: {
+                Text("삭제한 일정은 되돌릴 수 없어요.")
+            }
+            .alert("문제가 발생했어요", isPresented: errorBinding) {
+                Button("확인") { errorMessage = nil }
+            } message: {
+                Text(errorMessage ?? "")
+            }
+            .onAppear(perform: loadInitialValues)
+        }
+    }
+
+    private var errorBinding: Binding<Bool> {
+        Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+    }
+
+    private func loadInitialValues() {
+        if let editing {
+            title = editing.title
+            start = editing.start
+            end = editing.end
+            isAllDay = editing.isAllDay
+        } else {
+            // 새 일정은 고른 날짜의 다음 정시부터 한 시간으로 잡는다.
+            let base = PlannerDateHelper.startOfDay(defaultDate, calendar: calendar)
+            let hour = calendar.component(.hour, from: Date()) + 1
+            start = calendar.date(bySettingHour: min(hour, 23), minute: 0, second: 0, of: base) ?? base
+            end = calendar.date(byAdding: .hour, value: 1, to: start) ?? start
+        }
+    }
+
+    private func save() {
+        do {
+            try store.save(
+                title: title.trimmed, start: start, end: end, isAllDay: isAllDay,
+                editing: editing?.eventIdentifier, calendar: calendar
+            )
+            Task { await store.reload(around: start, calendar: calendar) }
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func performDelete() {
+        guard let identifier = editing?.eventIdentifier else { return }
+        do {
+            try store.delete(identifier: identifier)
+            Task { await store.reload(around: editing?.start ?? defaultDate, calendar: calendar) }
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
