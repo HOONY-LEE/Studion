@@ -168,6 +168,17 @@
         }
       }
     },
+    "%@에게 답장": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reply to %@"
+          }
+        }
+      }
+    },
     "%@학년도 %lld학기": {
       "localizations": {
         "en": {
@@ -314,6 +325,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Day %lld, no tasks"
+          }
+        }
+      }
+    },
+    "(이름 없음)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(No name)"
           }
         }
       }
@@ -958,6 +980,17 @@
         }
       }
     },
+    "닫기": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        }
+      }
+    },
     "달성": {
       "extractionState": "stale",
       "localizations": {
@@ -989,6 +1022,17 @@
         }
       }
     },
+    "답장": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reply"
+          }
+        }
+      }
+    },
     "대화": {
       "extractionState": "manual",
       "localizations": {
@@ -996,6 +1040,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Conversation"
+          }
+        }
+      }
+    },
+    "대화 검색": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search conversations"
+          }
+        }
+      }
+    },
+    "대화를 시작해 보세요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start a Conversation"
           }
         }
       }
@@ -1122,6 +1188,28 @@
         }
       }
     },
+    "리액션": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reactions"
+          }
+        }
+      }
+    },
+    "리액션 남긴 사람": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Who Reacted"
+          }
+        }
+      }
+    },
     "맞음": {
       "localizations": {
         "en": {
@@ -1167,6 +1255,28 @@
         }
       }
     },
+    "메시지 수정": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit Message"
+          }
+        }
+      }
+    },
+    "메시지 입력": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Message"
+          }
+        }
+      }
+    },
     "메시지가 없습니다": {
       "extractionState": "manual",
       "localizations": {
@@ -1174,6 +1284,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "No messages"
+          }
+        }
+      }
+    },
+    "메시지를 삭제할까요?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete this message?"
           }
         }
       }
@@ -1660,6 +1781,17 @@
         }
       }
     },
+    "복사": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy"
+          }
+        }
+      }
+    },
     "복습": {
       "localizations": {
         "en": {
@@ -1802,6 +1934,17 @@
         }
       }
     },
+    "사진 접근을 허용하면 최근 사진이 보입니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow photo access to see recent photos."
+          }
+        }
+      }
+    },
     "사진 촬영": {
       "localizations": {
         "en": {
@@ -1872,6 +2015,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "Social studies/science integrated electives, PE/arts/humanities, and science inquiry experiments record achievement level only."
+          }
+        }
+      }
+    },
+    "삭제": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        }
+      }
+    },
+    "삭제된 메시지": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleted message"
+          }
+        }
+      }
+    },
+    "삭제한 메시지는 되돌릴 수 없어요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleted messages can't be restored."
           }
         }
       }
@@ -2179,6 +2355,28 @@
         }
       }
     },
+    "수정": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit"
+          }
+        }
+      }
+    },
+    "수정됨": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edited"
+          }
+        }
+      }
+    },
     "시간 부족": {
       "localizations": {
         "en": {
@@ -2331,6 +2529,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "No grade recorded yet."
+          }
+        }
+      }
+    },
+    "아직 리액션이 없어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No reactions yet"
+          }
+        }
+      }
+    },
+    "아직 메시지가 없습니다": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No messages yet"
           }
         }
       }
@@ -3204,6 +3424,28 @@
         }
       }
     },
+    "전송": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send"
+          }
+        }
+      }
+    },
+    "전송 %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send %lld"
+          }
+        }
+      }
+    },
     "전체": {
       "localizations": {
         "en": {
@@ -3380,6 +3622,28 @@
         }
       }
     },
+    "첨부": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attach"
+          }
+        }
+      }
+    },
+    "첫 메시지를 보내면 여기에 표시돼요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your first message will appear here."
+          }
+        }
+      }
+    },
     "첫 메시지를 보내보세요.": {
       "extractionState": "manual",
       "localizations": {
@@ -3407,6 +3671,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Write your first question."
+          }
+        }
+      }
+    },
+    "최근 사진": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent Photos"
           }
         }
       }
@@ -3457,6 +3732,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "This is what appears when the card is flipped."
+          }
+        }
+      }
+    },
+    "카메라로 촬영": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take Photo"
           }
         }
       }
@@ -3519,6 +3805,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Incorrect"
+          }
+        }
+      }
+    },
+    "파일": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File"
           }
         }
       }

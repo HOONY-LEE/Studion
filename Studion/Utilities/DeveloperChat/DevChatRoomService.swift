@@ -24,6 +24,19 @@ final class DevChatRoomService {
             .value
     }
 
+    /// 방별 안 읽은 개수. 내가 보낸 메시지와 지운 메시지는 세지 않는다(계산은 서버 함수가 한다).
+    func unreadCounts() async -> [UUID: Int] {
+        struct Row: Decodable {
+            let room_id: UUID
+            let unread_count: Int
+        }
+        let rows: [Row]? = try? await client
+            .rpc("dev_unread_counts")
+            .execute()
+            .value
+        return Dictionary(uniqueKeysWithValues: (rows ?? []).map { ($0.room_id, $0.unread_count) })
+    }
+
     func allProfiles() async throws -> [DevProfile] {
         try await client
             .from("dev_profiles")

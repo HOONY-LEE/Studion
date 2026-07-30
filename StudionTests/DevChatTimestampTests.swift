@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import Studion
 
-/// 시각 표기 규칙. 실제 시계에 의존하지 않도록 `now`를 고정해 경계를 검증한다.
+/// 대화 목록 시각 표기. 실제 시계에 의존하지 않도록 `now`를 고정해 경계를 검증한다.
 @Suite("개발자 메신저 시각 표기")
 struct DevChatTimestampTests {
 
@@ -33,71 +33,51 @@ struct DevChatTimestampTests {
         #expect(DevChatTimestamp.style(for: date(7, 30, 0), now: now, calendar: calendar) == .time)
     }
 
-    @Test("하루 전은 어제다")
+    @Test("하루 전은 어제다 — 흐른 시간이 24시간이 안 돼도 날짜로 판단한다")
     func yesterday() {
+        // 어제 23시는 지금(오늘 15시)에서 16시간 전이지만 "어제"여야 한다.
         #expect(DevChatTimestamp.style(for: date(7, 29, 23), now: now, calendar: calendar) == .yesterday)
+        // 어제 0시는 39시간 전이지만 역시 "어제"다.
+        #expect(DevChatTimestamp.style(for: date(7, 29, 0), now: now, calendar: calendar) == .yesterday)
     }
 
-    @Test("이틀에서 엿새 전은 요일로 보여준다")
-    func recentDaysShowWeekday() {
-        for day in 24...28 {
-            #expect(
-                DevChatTimestamp.style(for: date(7, day), now: now, calendar: calendar) == .weekday,
-                "7월 \(day)일은 요일 표기여야 합니다"
-            )
-        }
-    }
-
-    @Test("이레 전부터는 날짜로 보여준다")
+    @Test("이틀 전부터는 날짜로 보여준다")
     func olderShowsDate() {
+        #expect(DevChatTimestamp.style(for: date(7, 28), now: now, calendar: calendar) == .date)
         #expect(DevChatTimestamp.style(for: date(7, 23), now: now, calendar: calendar) == .date)
         #expect(DevChatTimestamp.style(for: date(1, 5), now: now, calendar: calendar) == .date)
     }
 
-    @Test("시:분이 아니라 날짜 단위로 센다 — 경계에서 요일이 겹치지 않는다")
-    func countsWholeDaysNotElapsedHours() {
-        // 6일 23시간 전(7월 23일 16시). 흐른 시간으로 세면 6일로 잘려 요일이 되지만,
-        // 날짜로 세면 7일 전이라 날짜여야 한다. 같은 요일이 두 번 나오는 걸 막는다.
-        #expect(DevChatTimestamp.style(for: date(7, 23, 16), now: now, calendar: calendar) == .date)
-    }
-
-    @Test("미래 시각은 오늘이 아니면 날짜로 떨어진다 — 분류가 비지 않는다")
+    @Test("미래 시각도 분류가 비지 않는다")
     func futureDatesStillClassify() {
         // 기기 시계가 어긋나 서버 시각이 미래로 보일 수 있다. 어떤 입력에도 답이 있어야 한다.
-        let style = DevChatTimestamp.style(for: date(8, 5), now: now, calendar: calendar)
-        #expect(style == .date)
+        #expect(DevChatTimestamp.style(for: date(8, 5), now: now, calendar: calendar) == .date)
     }
 
-    @Test("목록 표기는 어제를 번역해 보여준다")
-    func listLabelUsesTranslation() {
-        let label = DevChatTimestamp.listLabel(
-            for: date(7, 29), now: now, calendar: calendar, locale: Locale(identifier: "ko")
-        )
-        #expect(label == "어제")
+    @Test("어제는 번역된 문구로 보여준다")
+    func yesterdayIsLocalized() {
+        let korean = DevChatTimestamp.listLabel(
+            for: date(7, 29), now: now, calendar: calendar, locale: Locale(identifier: "ko"))
+        #expect(korean == "어제")
 
         let english = DevChatTimestamp.listLabel(
-            for: date(7, 29), now: now, calendar: calendar, locale: Locale(identifier: "en")
-        )
+            for: date(7, 29), now: now, calendar: calendar, locale: Locale(identifier: "en"))
         #expect(english == "Yesterday")
     }
 
-    @Test("구분선 표기는 목록과 달리 시각을 함께 담는다")
-    func separatorLabelIncludesTime() {
+    @Test("오늘과 지난 날짜는 서로 다른 형식으로 나온다")
+    func labelsDifferByStyle() {
         let locale = Locale(identifier: "ko")
-        let yesterday = DevChatTimestamp.separatorLabel(
-            for: date(7, 29, 10), now: now, calendar: calendar, locale: locale
-        )
-        // "어제" 뒤에 시각이 붙는다. 정확한 시각 문자열은 로케일 포맷이 정하므로
-        // 앞부분과 "비어 있지 않음"만 확인한다.
-        #expect(yesterday.hasPrefix("어제 "))
-        #expect(yesterday.count > "어제 ".count)
+        let today = DevChatTimestamp.listLabel(
+            for: date(7, 30, 9), now: now, calendar: calendar, locale: locale)
+        let older = DevChatTimestamp.listLabel(
+            for: date(7, 20), now: now, calendar: calendar, locale: locale)
 
-        // 오늘은 접두어 없이 시각만.
-        let today = DevChatTimestamp.separatorLabel(
-            for: date(7, 30, 9), now: now, calendar: calendar, locale: locale
-        )
-        #expect(!today.contains("어제"))
         #expect(!today.isEmpty)
+        #expect(!older.isEmpty)
+        #expect(today != older)
+        #expect(!today.contains("어제"))
+        #expect(!older.contains("어제"))
     }
 }
 #endif
