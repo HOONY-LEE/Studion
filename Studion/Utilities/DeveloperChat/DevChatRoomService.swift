@@ -33,6 +33,31 @@ final class DevChatRoomService {
             .value
     }
 
+    /// 방마다 가장 최근 메시지. 대화 목록의 미리보기·시각에 쓴다.
+    ///
+    /// 방마다 따로 질의하면 방 수만큼 왕복하므로 한 번에 받아 클라이언트에서 가른다.
+    /// 팀 규모와 방 개수가 작다는 전제이며, 그 전제가 깨지면 방별 최근 메시지를
+    /// 돌려주는 뷰나 RPC를 두는 것이 맞다.
+    func lastMessages(for roomIDs: [UUID]) async throws -> [UUID: DevMessage] {
+        guard !roomIDs.isEmpty else { return [:] }
+
+        let recent: [DevMessage] = try await client
+            .from("dev_messages")
+            .select()
+            .in("room_id", values: roomIDs.map(\.uuidString))
+            .order("created_at", ascending: false)
+            .limit(500)
+            .execute()
+            .value
+
+        // 내림차순이라 방마다 처음 만나는 것이 가장 최근이다.
+        return recent.reduce(into: [:]) { result, message in
+            if result[message.roomId] == nil {
+                result[message.roomId] = message
+            }
+        }
+    }
+
     func members(of roomID: UUID) async throws -> [DevProfile] {
         struct MemberRow: Decodable { let user_id: UUID }
 

@@ -262,14 +262,19 @@ Studion/Utilities/DeveloperChat/          (전부 #if DEBUG)
   ├─ DevChatAuthService.swift             가입/로그인/로그아웃/세션
   ├─ DevChatRoomService.swift             방 생성(RPC 호출)/목록/초대
   ├─ DevChatMessageService.swift          메시지 조회/전송/실시간 구독
-  └─ DevChatModels.swift                  DevProfile/DevChatRoom/DevMessage (Codable)
+  ├─ DevChatModels.swift                  DevProfile/DevChatRoom/DevMessage (Codable)
+  ├─ DevChatLayout.swift                  말풍선 묶음·시각 구분선 계산 (순수 로직, 테스트 있음)
+  ├─ DevChatTimestamp.swift               오늘/어제/요일/날짜 표기 (순수 로직, 테스트 있음)
+  └─ DevChatStrings.swift                 문자열을 조립할 때 쓰는 번역 조회
 
 Studion/Views/Developer/                  (전부 #if DEBUG)
   ├─ DeveloperChatView.swift              루트 — 로그인 여부에 따라 분기
   ├─ DevChatAuthView.swift                로그인/가입 폼
-  ├─ DevChatRoomListView.swift            채팅방 목록 ("애플 메시지" 목록과 같은 느낌)
+  ├─ DevChatRoomListView.swift            대화 목록 (아바타·미리보기·시각·검색)
   ├─ DevUserSearchView.swift              유저 검색 → 방 만들기/초대
-  └─ DevChatRoomView.swift                대화 화면 (말풍선 UI)
+  ├─ DevChatRoomView.swift                대화 화면 (말풍선 배치·입력창)
+  ├─ DevChatBubble.swift                  말풍선 모양(꼬리 포함)과 색
+  └─ DevChatAvatar.swift                  이름 첫 글자 원형 아바타
 ```
 
 기존 프로젝트 관례(순수 Swift 로직 vs SwiftUI 뷰 분리, → [01](01-architecture.md))를 따르되,
@@ -310,6 +315,30 @@ UI 문구 자체는 Release 번들에도 리소스로 남는다 — 기능은 �
 valid host`로 즉시 크래시했다 — 시뮬레이터에서 탭을 눌렀는데 홈 화면으로 튕기는
 증상으로 나타났다. `https:$()//host`처럼 빈 매크로 참조 `$()`로 슬래시 두 개를
 갈라놓아야 한다.
+
+### 애플 메시지처럼 보이게 하는 규칙
+
+배치 판단을 뷰에 흩어놓지 않고 `DevChatLayout`에 모았다. 뷰는 "이 말풍선에 꼬리를
+달아야 하나"를 스스로 묻지 않고 계산된 결과만 그린다.
+
+| 규칙 | 값 | 이유 |
+|---|---|---|
+| 같은 사람이 연달아 보내면 한 묶음 | 5분 이내 | 애플 메시지와 같은 묶음 감각 |
+| 묶음의 **마지막에만** 꼬리 | — | 애플 메시지도 묶음 끝에만 꼬리가 있다 |
+| 묶음 안 간격 / 묶음 사이 간격 | 2pt / 8pt | 묶여 보이려면 안쪽이 훨씬 촘촘해야 한다 |
+| 시각 구분선 | 1시간 이상 벌어질 때 + 첫 메시지 | 매 메시지에 시각을 붙이면 지저분하다 |
+| 구분선이 들어가면 묶음을 끊는다 | — | 안 끊으면 구분선이 꼬리 없는 말풍선 사이에 낀다 |
+| 보낸 사람 이름·아바타 | 그룹 대화의 받은 메시지만 | 1:1에서는 누가 보냈는지 자명하다 |
+
+**겪은 버그 두 개** (둘 다 `DevChatBubble.swift` 주석에 남겼다):
+
+1. **모서리가 파였다.** 본체와 꼬리를 각각 `Path`로 그려 겹쳤더니, 두 하위 경로의 회전
+   방향이 어긋난 쪽에서 nonzero winding 규칙이 겹친 영역을 구멍으로 판단했다. 좌우가
+   거울상이라 **받은 말풍선만** 파여 보여 더 헷갈렸다. 지금은 시계 방향으로 한 바퀴 도는
+   **하나의 외곽선**으로 그린다.
+2. **꼬리가 지느러미처럼 보였다.** 꼬리 끝에서 밑면으로 돌아오는 곡선의 조절점 y를 두
+   끝점과 같게 두어 곡선이 직선이 됐다. 조절점을 위로 올려 **오목한 갈고리**를 만들어야
+   꼬리로 읽힌다.
 
 ---
 
