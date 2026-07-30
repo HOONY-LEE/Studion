@@ -58,7 +58,7 @@ struct DevChatRoomListView: View {
         .overlay {
             if let roomService, roomService.rooms.isEmpty {
                 EmptyStateView(
-                    systemImage: "bubble.left.and.bubble.right",
+                    systemImage: "message",
                     title: "대화가 없어요",
                     message: "오른쪽 위 버튼으로 팀원을 찾아 대화를 시작하세요."
                 )

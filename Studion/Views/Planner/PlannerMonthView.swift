@@ -73,8 +73,9 @@ struct PlannerMonthView: View {
 
         return VStack(spacing: 0) {
             HStack {
-                Text(verbatim: monthStart.formatted(.dateTime.year().month(.wide)))
-                    .font(.system(size: 28, weight: .bold))
+                // 연도는 상단 날짜 알약이 이미 보여주므로 큰 제목은 달만 (Gradin과 동일).
+                Text(verbatim: monthStart.formatted(.dateTime.month(.wide)))
+                    .font(.system(size: 34, weight: .bold))
                 Spacer()
             }
             .padding(.horizontal, 16)

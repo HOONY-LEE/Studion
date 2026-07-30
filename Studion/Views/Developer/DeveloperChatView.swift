@@ -54,7 +54,7 @@ struct DeveloperChatView: View {
             }
         } else {
             EmptyStateView(
-                systemImage: "bubble.left.and.bubble.right",
+                systemImage: "message",
                 title: "메신저가 아직 연결되지 않았어요",
                 message: "Supabase 프로젝트를 연결하면 로그인과 대화를 쓸 수 있습니다."
             )

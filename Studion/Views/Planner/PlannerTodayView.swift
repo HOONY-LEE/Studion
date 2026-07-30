@@ -94,7 +94,9 @@ struct PlannerTodayView: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("할 일")
+            // Gradin과 같이 제목은 고정하고, 보고 있는 날짜를 옆에 작게 붙인다
+            // (좌우로 넘기면 이 날짜만 바뀐다).
+            Text("오늘 할 일")
                 .font(.system(size: 28, weight: .bold))
             Text(verbatim: selectedDate.formatted(.dateTime.month().day()))
                 .font(.system(size: 14, weight: .medium))
