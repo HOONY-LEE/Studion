@@ -18,5 +18,16 @@
 	<array>
 		<string>Default</string>
 	</array>
+<!--
+	  집중 모드(다른 앱 차단)에 필요한 권한. **애플 승인 전에는 넣지 않는다** —
+	  프로파일에 없는 entitlement를 요구하면 실기기 서명 자체가 실패해서, 승인도 나지 않은
+	  기능 때문에 앱 전체를 빌드할 수 없게 된다.
+
+	  developer.apple.com에서 Family Controls (Distribution) 을 신청해 승인받은 뒤
+	  아래 두 줄을 dict 안에 넣으면 된다. 신청 방법과 유의점 → docs/09-app-shield.md §6
+
+	  <key>com.apple.developer.family-controls</key>
+	  <true/>
+	-->
 </dict>
 </plist>

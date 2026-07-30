@@ -201,6 +201,11 @@ struct SettingsView: View {
             } label: {
                 Label("알림", systemImage: "bell")
             }
+            NavigationLink {
+                AppShieldView()
+            } label: {
+                Label("집중 모드", systemImage: "moon.circle")
+            }
         }
     }
 

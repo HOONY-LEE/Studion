@@ -184,10 +184,19 @@ FocusSettings (전역 설정)            — @AppStorage
 
 | # | 조건 | 현재 상태 |
 |---|---|---|
-| 1 | 유료 Apple Developer Program 멤버십 | **미충족** — 무료 팀(softium)으로는 entitlement 신청 불가 |
-| 2 | Family Controls entitlement (개발용) | 미신청 |
-| 3 | Family Controls entitlement (배포용) | 미신청 — **별도 심사이며 2026년 현재 지연** |
-| 4 | 익스텐션 2개 각각의 entitlement | 미신청 |
+| 1 | 유료 Apple Developer Program 멤버십 | **충족** (2026-07) |
+| 2 | Family Controls entitlement (개발용) | 미신청 — **이것 때문에 지금 동작하지 않는다** |
+| 3 | Family Controls entitlement (배포용) | 미신청 — 별도 심사 |
+| 4 | 익스텐션 2개 각각의 entitlement | 미신청 (시간대 예약을 넣을 때 필요) |
+
+> **2026-07 구현 상태**: 화면과 로직은 만들어 두었다 (설정 > 집중 모드).
+> entitlement가 없어 `requestAuthorization`이 실패하므로, 그 실패를 크래시가 아니라
+> **안내 화면**으로 다룬다 — 승인 전에도 앱의 다른 기능은 그대로 쓸 수 있다.
+> entitlement가 승인되면 `Config/Studion.entitlements`의 주석을 풀기만 하면 된다.
+>
+> **시간대 예약(§2-1)은 아직 없다.** `DeviceActivityMonitor` 익스텐션이 있어야 하는데,
+> 그 익스텐션도 승인 없이는 동작을 확인할 수 없어 검증 불가능한 코드를 미리 늘리지
+> 않았다. 지금 있는 것은 **수동 집중 시작/끝**과 **할 일 달성 기반 해제**(§2-2)다.
 
 ### 신청 시 유의할 것
 

@@ -12,6 +12,8 @@ struct LearnView: View {
 
     @State private var isAddingSet = false
     @State private var setToEdit: QuestionSet?
+    /// 원래 오늘 할 일 탭에 있던 진입로 — 시간표도 학습 계획의 일부라 이쪽으로 옮겼다.
+    @State private var isShowingTimetable = false
 
     var body: some View {
         NavigationStack {
@@ -43,6 +45,14 @@ struct LearnView: View {
             }
             .navigationTitle("학습")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        isShowingTimetable = true
+                    } label: {
+                        Image(systemName: "calendar.badge.clock")
+                    }
+                    .accessibilityLabel("시간표 관리")
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         isAddingSet = true
@@ -56,6 +66,16 @@ struct LearnView: View {
             }
             .sheet(item: $setToEdit) { set in
                 QuestionSetFormView(editing: set)
+            }
+            .sheet(isPresented: $isShowingTimetable) {
+                NavigationStack {
+                    TimetableListView()
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("닫기") { isShowingTimetable = false }
+                            }
+                        }
+                }
             }
         }
     }
