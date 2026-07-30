@@ -320,3 +320,78 @@ struct HeatLevelTests {
         #expect(PlannerDateHelper.heatLevel(completed: 1, total: -1) == 0)
     }
 }
+
+// MARK: - 좌우 페이징 인덱스
+
+@Suite("페이징 인덱스")
+struct PagingIndexTests {
+
+    @Test("날짜 → 인덱스 → 날짜가 원래 날짜로 돌아온다")
+    func dayIndexRoundTrips() {
+        for date in [makeDate(2026, 7, 30), makeDate(1999, 12, 31), makeDate(2035, 2, 28)] {
+            let index = PlannerDateHelper.dayIndex(for: date, calendar: cal)
+            #expect(PlannerDateHelper.date(forDayIndex: index, calendar: cal) == date)
+        }
+    }
+
+    @Test("같은 날의 다른 시각은 같은 인덱스다")
+    func sameDayGivesSameIndex() {
+        let morning = PlannerDateHelper.dayIndex(for: makeDate(2026, 7, 30, 1), calendar: cal)
+        let night = PlannerDateHelper.dayIndex(for: makeDate(2026, 7, 30, 23, 59), calendar: cal)
+        #expect(morning == night)
+    }
+
+    @Test("하루 차이는 인덱스 1 차이다")
+    func adjacentDaysAreAdjacentIndices() {
+        let today = PlannerDateHelper.dayIndex(for: makeDate(2026, 7, 30), calendar: cal)
+        let tomorrow = PlannerDateHelper.dayIndex(for: makeDate(2026, 7, 31), calendar: cal)
+        #expect(tomorrow - today == 1)
+    }
+
+    @Test("기준일보다 이른 날짜는 음수 인덱스가 된다 — 과거로도 넘길 수 있어야 한다")
+    func pastDatesGiveNegativeIndices() {
+        #expect(PlannerDateHelper.dayIndex(for: makeDate(1995, 6, 1), calendar: cal) < 0)
+    }
+
+    @Test("월을 넘겨도 하루 간격이 유지된다")
+    func monthBoundaryKeepsStep() {
+        let last = PlannerDateHelper.dayIndex(for: makeDate(2026, 7, 31), calendar: cal)
+        let first = PlannerDateHelper.dayIndex(for: makeDate(2026, 8, 1), calendar: cal)
+        #expect(first - last == 1)
+    }
+
+    @Test("월 인덱스는 인접한 달이 인접한 정수다")
+    func monthIndexIsContiguous() {
+        let july = PlannerDateHelper.monthIndex(for: makeDate(2026, 7, 15), calendar: cal)
+        let august = PlannerDateHelper.monthIndex(for: makeDate(2026, 8, 1), calendar: cal)
+        #expect(august - july == 1)
+    }
+
+    @Test("연을 넘겨도 월 인덱스가 이어진다")
+    func monthIndexCrossesYear() {
+        let december = PlannerDateHelper.monthIndex(for: makeDate(2026, 12, 31), calendar: cal)
+        let january = PlannerDateHelper.monthIndex(for: makeDate(2027, 1, 1), calendar: cal)
+        #expect(january - december == 1)
+    }
+
+    @Test("같은 달의 어느 날이든 같은 월 인덱스다")
+    func sameMonthGivesSameIndex() {
+        let first = PlannerDateHelper.monthIndex(for: makeDate(2026, 7, 1), calendar: cal)
+        let last = PlannerDateHelper.monthIndex(for: makeDate(2026, 7, 31, 23), calendar: cal)
+        #expect(first == last)
+    }
+
+    @Test("월 인덱스 → 그 달 1일")
+    func monthStartFromIndex() {
+        let index = PlannerDateHelper.monthIndex(for: makeDate(2026, 7, 30), calendar: cal)
+        #expect(PlannerDateHelper.monthStart(forMonthIndex: index, calendar: cal) == makeDate(2026, 7, 1))
+    }
+
+    @Test("월 인덱스도 왕복한다")
+    func monthIndexRoundTrips() {
+        for date in [makeDate(2026, 1, 1), makeDate(2026, 12, 1), makeDate(2001, 3, 1)] {
+            let index = PlannerDateHelper.monthIndex(for: date, calendar: cal)
+            #expect(PlannerDateHelper.monthStart(forMonthIndex: index, calendar: cal) == date)
+        }
+    }
+}

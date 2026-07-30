@@ -27,6 +27,46 @@ enum PlannerDateHelper {
         return startOfDay(moved, calendar: calendar)
     }
 
+    // MARK: - 좌우 페이징 인덱스
+    //
+    // 일간·월간 화면은 날짜를 좌우로 넘겨 이동한다. `ScrollView`의 스크롤 위치로 쓰려면
+    // 날짜를 **정수 하나**로 바꿔야 하므로, 고정된 기준일(에폭)로부터의 거리로 센다.
+
+    /// 페이징 인덱스의 기준일. 값이 바뀌면 저장된 스크롤 위치의 의미가 달라지므로 고정한다.
+    private static let pagingEpoch = DateComponents(year: 2000, month: 1, day: 1)
+
+    private static func epochDate(_ calendar: Calendar) -> Date {
+        calendar.date(from: pagingEpoch) ?? Date(timeIntervalSince1970: 946_684_800)
+    }
+
+    /// 기준일로부터 며칠째인지. 같은 날짜는 항상 같은 값이 나온다.
+    static func dayIndex(for date: Date, calendar: Calendar) -> Int {
+        calendar.dateComponents(
+            [.day], from: epochDate(calendar), to: startOfDay(date, calendar: calendar)
+        ).day ?? 0
+    }
+
+    static func date(forDayIndex index: Int, calendar: Calendar) -> Date {
+        let base = epochDate(calendar)
+        guard let moved = calendar.date(byAdding: .day, value: index, to: base) else { return base }
+        return startOfDay(moved, calendar: calendar)
+    }
+
+    /// 월을 정수 하나로. `연 * 12 + (월 - 1)`이라 인접한 달이 인접한 정수가 된다.
+    static func monthIndex(for date: Date, calendar: Calendar) -> Int {
+        let parts = calendar.dateComponents([.year, .month], from: date)
+        let year = parts.year ?? 2000
+        let month = parts.month ?? 1
+        return year * 12 + (month - 1)
+    }
+
+    /// 월 인덱스가 가리키는 달의 1일.
+    static func monthStart(forMonthIndex index: Int, calendar: Calendar) -> Date {
+        let components = DateComponents(year: index / 12, month: index % 12 + 1, day: 1)
+        guard let date = calendar.date(from: components) else { return epochDate(calendar) }
+        return startOfDay(date, calendar: calendar)
+    }
+
     // MARK: - 요일 변환
 
     /// Calendar 컨벤션. **1=일요일 … 7=토요일**
