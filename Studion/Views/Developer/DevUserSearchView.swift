@@ -1,4 +1,3 @@
-#if DEBUG
 import SwiftUI
 
 /// 팀원을 검색해 1:1 대화를 시작한다. 팀 규모가 작다는 전제로 전체 프로필을
@@ -61,7 +60,12 @@ struct DevUserSearchView: View {
     /// 대신 일반 텍스트 색으로 보이도록 `.foregroundStyle(.primary)`를 명시한다.
     private func row(for user: DevProfile) -> some View {
         HStack(spacing: 12) {
-            DevChatAvatar(displayName: user.displayName, diameter: 44)
+            DevChatAvatar(
+                displayName: user.displayName,
+                diameter: 44,
+                avatarPath: user.avatarPath,
+                client: roomService.client
+            )
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(verbatim: user.displayName)
@@ -103,4 +107,3 @@ struct DevUserSearchView: View {
         }
     }
 }
-#endif

@@ -65,15 +65,8 @@ struct ReviewSessionView: View {
                     }
 
                     if isTextRevealed {
-                        if note.isMultipleChoice, let parsed = MultipleChoiceParser.parse(note.userEditedText) {
-                            multipleChoiceContent(parsed, note: note)
-                                .transition(.opacity)
-                        } else {
-                            Text(note.userEditedText)
-                                .font(.body)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .transition(.opacity)
-                        }
+                        content(for: note)
+                            .transition(.opacity)
                     } else {
                         Button("내용 보기") {
                             withAnimation { isTextRevealed = true }
@@ -115,18 +108,48 @@ struct ReviewSessionView: View {
         }
     }
 
-    // MARK: - 객관식 카드
+    // MARK: - 카드 내용
 
-    /// 문제를 다시 골라볼 수 있는 카드 형태. 정답을 지정해 뒀으면 즉시 채점하고,
-    /// 모르면(비워뒀으면) 채점 없이 골라보기만 한다 — 앱이 정답을 추정하지 않는다.
-    private func multipleChoiceContent(_ parsed: MultipleChoiceParser.Result, note: WrongAnswerNote) -> some View {
+    /// 지문 · 문제 · 선택지 · 해설 순으로 보여준다 — 오답노트를 만들 때 넣은 칸 그대로다.
+    ///
+    /// 정답을 지정해 뒀으면 고르는 즉시 채점하고, 모르면(비워뒀으면) 채점 없이 골라보기만
+    /// 한다 — 앱이 정답을 추정하지 않는다.
+    @ViewBuilder
+    private func content(for note: WrongAnswerNote) -> some View {
+        let content = note.content
+
         VStack(alignment: .leading, spacing: 12) {
-            if !parsed.stem.isEmpty {
-                Text(verbatim: parsed.stem)
-                    .font(.body)
+            if !content.passage.isEmpty {
+                Text(verbatim: content.passage)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            ForEach(Array(parsed.choices.enumerated()), id: \.offset) { index, choice in
+            if !content.prompt.isEmpty {
+                Text(verbatim: content.prompt)
+                    .font(.body)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if note.isMultipleChoice, content.isMultipleChoice {
+                choiceList(content.choices, note: note)
+            }
+
+            if !note.explanation.isEmpty {
+                Divider()
+                Text(verbatim: note.explanation)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func choiceList(_ choices: [String], note: WrongAnswerNote) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(choices.enumerated()), id: \.offset) { index, choice in
                 Button {
                     selectedChoiceIndex = index
                 } label: {

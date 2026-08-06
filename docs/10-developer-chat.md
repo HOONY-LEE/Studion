@@ -22,13 +22,15 @@
 **왜 원칙과 충돌하는데 만드는가** — [00](00-product-principles.md) 원칙 3은 "채팅을 만들지 않는다"고
 못박고 있다. 이건 그 원칙에 대한 **명시적 예외**이며, 예외가 성립하는 조건은:
 
-1. **DEBUG 빌드에서만 화면·로직이 컴파일된다** (`#if DEBUG`, → §6). Release(App Store 제출본)에는
-   이 기능의 Swift 코드가 없다.
+1. **설정 화면 안에서만 들어간다** (탭바에 없음 — 학생용 기능처럼 보이지 않게).
+   TestFlight를 포함한 모든 빌드에서 컴파일·동작한다(→ §6) — 팀원끼리 실제 테스트 빌드로
+   연락해야 하기 때문에 더 이상 DEBUG 전용이 아니다.
 2. 학생 데이터가 아니다 — 팀원 본인들이 스스로 만드는 대화다.
 3. 이 예외를 근거로 학생 대상 채팅·소셜 기능을 만들지 않는다.
 
-**출시 체크리스트**: App Store 제출 직전, `project.yml`에서 `supabase-swift` 패키지 의존성 자체를
-제거한다 (§6에서 설명하는 이유로, `#if DEBUG`만으로는 서드파티 바이너리 링크까지는 못 뗀다).
+**출시 체크리스트**: 실제 App Store 정식 출시(TestFlight가 아니라)를 준비할 때는 이 기능을
+다시 검토한다 — 미성년자 대상 앱에 채팅이 남아 있으면 심사에서 문제가 될 수 있다. 완전히
+빼려면 `project.yml`에서 `supabase-swift` 패키지 의존성 자체를 제거해야 한다(§6).
 
 ---
 
@@ -36,7 +38,7 @@
 
 **들어가는 것**
 
-- 이메일/비밀번호로 팀원 계정 생성·로그인
+- Apple 계정으로 로그인 (별도 가입 절차 없음 — §2)
 - 유저 검색 (표시 이름 또는 이메일 일부로)
 - 1:1 대화, 그룹 대화(채팅방) 생성
 - 기존 채팅방에 유저 초대
@@ -56,14 +58,36 @@
 
 ## 2. 인증
 
-- Supabase Auth, **이메일/비밀번호** 방식.
-- 팀 내부용이라 소셜 로그인·매직링크는 필요 없다. 가장 단순한 방식으로 시작한다.
-- 가입 자체를 막지는 않는다 (Supabase 프로젝트 URL/키를 아는 사람만 접근 가능하다는 것이
-  1차 방어선). 실제로는 앱 내 개발자 탭에만 있는 기능이라 접근 자체가 제한적이다.
+- Supabase Auth, **Sign in with Apple** 방식 (`signInWithIdToken`). 이메일/비밀번호 가입은
+  두지 않는다 — 같은 사람이 계정을 두 개 만들 이유가 없고, 이메일/비밀번호를 따로
+  기억하게 만들 필요도 없다.
+- **회원가입이라는 별도 단계가 없다.** Apple ID로 로그인하면 그 자리에서 계정이 생긴다.
+  같은 Apple ID로 다시 로그인해도 Apple이 내려주는 고유 식별자(`sub`)로 Supabase가
+  항상 같은 `auth.users` 행을 찾아 로그인시킨다 — 계정이 늘어나지 않는다.
+- 표시 이름은 Apple이 **최초 인증에서만** 내려주는 `fullName`으로 채운다. 이후 로그인은
+  이 값이 없으므로, 로그인 성공 후 값이 있을 때만 `dev_profiles.display_name`을
+  덮어쓴다(→ `DevChatAuthService.signInWithApple`). 값이 없으면 가입 트리거가 이메일
+  앞부분(또는 이메일도 없으면 `'팀원'`, → §3의 겪은 버그 (2))으로 채워둔 이름이 남는다.
+- **그 "최초 인증"은 팀 메신저가 아니라 온보딩에서 먼저 소비된다.** 온보딩의 "Apple로
+  시작할까요?" 단계(→ `OnboardingView.signInStep`)가 앱에서 처음 만나는 Apple 로그인
+  자리라, 거기서 받은 `fullName`으로 팀 메신저 계정도 함께 만들어 둔다
+  (`handleAppleSignIn`이 `AppleSignInStore`와 `DevChatAuthService.signInWithApple`을
+  같은 인증 결과로 같이 호출한다). 실패해도 조용히 넘어간다 — 이 화면의 주된 목적은
+  iCloud 연결이고, 팀 메신저 계정 생성은 되면 좋은 덤이다. 온보딩을 건너뛴 사람만
+  팀 메신저 화면에서 처음으로 이름을 준다.
+- 클라이언트는 Apple 요청에 `nonce`의 SHA256 해시를 담아 보내고, Supabase에는 원본
+  `nonce`를 넘긴다 — 토큰 재사용(replay)을 막기 위한 표준 절차다. 온보딩과 팀 메신저
+  둘 다 이 절차를 쓰므로 `AppleSignInNonce`에 모아 중복을 없앴다.
 - 세션은 Supabase SDK가 키체인에 보관, 자동 갱신.
 
-> 이 인증은 **Sign in with Apple(→ [06](06-sync-and-backup.md))과 완전히 별개**다.
-> 학생용 CloudKit 동기화 계정과 섞이지 않는다 — 개발자 탭은 자체 Supabase 세션을 쓴다.
+> 이 인증은 **CloudKit 동기화용 Sign in with Apple(→ [06](06-sync-and-backup.md))과 완전히
+> 별개의 흐름**이다. 둘 다 "Apple로 로그인"이지만 하나는 Supabase 세션을 만들고 하나는
+> CloudKit 계정 표시용일 뿐이라 서로 상태를 공유하지 않는다 — 개발자 탭에 들어가면
+> CloudKit 로그인 여부와 무관하게 다시 Apple 인증 시트가 뜬다.
+>
+> **Supabase 대시보드 설정이 먼저 필요하다** — Authentication → Providers → Apple을
+> 켜고 Client ID(Service ID) 칸에 앱 번들 ID(`com.studion.app`)를 넣어야 한다. 이건
+> 대시보드 로그인이 필요해 코드로는 대신할 수 없다.
 
 ---
 
@@ -123,7 +147,11 @@ begin
   insert into public.dev_profiles (id, display_name, email)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
+    coalesce(
+      nullif(new.raw_user_meta_data->>'display_name', ''),
+      nullif(split_part(coalesce(new.email, ''), '@', 1), ''),
+      '팀원'
+    ),
     new.email
   );
   return new;
@@ -135,12 +163,23 @@ create trigger dev_on_auth_user_created
   for each row execute function dev_handle_new_user();
 ```
 
-**겪은 버그.** `set search_path = public`과 `public.dev_profiles`처럼 스키마를 명시하지
+**겪은 버그 (1).** `set search_path = public`과 `public.dev_profiles`처럼 스키마를 명시하지
 않으면, 이 트리거가 `auth` 스키마 쪽 컨텍스트에서 실행될 때 `dev_profiles`를 못 찾아
 가입 자체가 실패한다 — Supabase Auth는 원인을 감추고 클라이언트에는 그냥
 "Database error saving new user"만 돌려준다. 이미 001_schema.sql을 실행한 프로젝트는
 `002_fix_new_user_trigger.sql`을 SQL Editor에서 한 번 더 실행하면 된다
 (`create or replace function`이라 트리거는 그대로 두고 함수 본문만 바뀐다).
+
+**겪은 버그 (2) — Apple 로그인으로 바꾼 뒤 같은 에러가 재발했다.** 이메일/비밀번호
+가입에서는 `new.email`이 항상 있어서 `split_part` 폴백이 충분했다. Apple `id_token`
+로그인은 다르다 — `fullName`은 애플이 클라이언트(`ASAuthorizationAppleIDCredential`)에만
+주고 토큰에는 절대 담기지 않으므로 `raw_user_meta_data->>'display_name'`은 항상 NULL이고,
+`email`도 이 앱(번들 ID)에 이미 한 번 권한을 준 적이 있으면(예: 온보딩의 "Apple로
+시작하기" 단계를 먼저 거친 경우) 두 번째 인증부터는 애플이 다시 내려주지 않을 수 있다.
+두 값이 모두 없으면 옛 폴백이 NULL을 반환해 `display_name`의 not null 제약을 위반하고,
+트리거가 같은 트랜잭션 안에서 실행되므로 `auth.users` insert 자체가 롤백된다 — 증상은
+똑같이 "Database error saving new user"였다. `008_apple_signup_display_name_fallback.sql`이
+마지막에 하드코드 기본값(`'팀원'`)을 넣어 항상 값이 있게 만든다.
 
 ### 채팅방 생성을 원자적으로 — RPC 함수
 
@@ -282,10 +321,10 @@ Supabase Realtime의 `postgres_changes`를 구독한다. 대화 화면이 열려
 ## 6. 클라이언트 구조
 
 ```
-Studion/Utilities/DeveloperChat/          (전부 #if DEBUG)
+Studion/Utilities/DeveloperChat/
   ├─ DevChatConfig.swift                  Supabase URL/anon key. .gitignore 대상 (§7)
   ├─ DevChatClient.swift                  SupabaseClient 싱글턴 래핑
-  ├─ DevChatAuthService.swift             가입/로그인/로그아웃/세션
+  ├─ DevChatAuthService.swift             Apple 로그인/로그아웃/세션 (§2)
   ├─ DevChatRoomService.swift             방 생성(RPC 호출)/목록/초대
   ├─ DevChatMessageService.swift          메시지 조회/전송/실시간 구독
   ├─ DevChatModels.swift                  DevProfile/DevChatRoom/DevMessage (Codable)
@@ -293,9 +332,9 @@ Studion/Utilities/DeveloperChat/          (전부 #if DEBUG)
   ├─ DevChatTimestamp.swift               오늘/어제/요일/날짜 표기 (순수 로직, 테스트 있음)
   └─ DevChatStrings.swift                 문자열을 조립할 때 쓰는 번역 조회
 
-Studion/Views/Developer/                  (전부 #if DEBUG)
+Studion/Views/Developer/
   ├─ DeveloperChatView.swift              루트 — 로그인 여부에 따라 분기
-  ├─ DevChatAuthView.swift                로그인/가입 폼
+  ├─ DevChatAuthView.swift                Apple 로그인 화면 (SignInWithAppleButton + nonce)
   ├─ DevChatRoomListView.swift            대화 목록 (아바타·미리보기·시각·검색)
   ├─ DevUserSearchView.swift              유저 검색 → 방 만들기/초대
   ├─ DevChatRoomView.swift                대화 화면 (말풍선 배치·입력창)
@@ -307,14 +346,18 @@ Studion/Views/Developer/                  (전부 #if DEBUG)
 이 기능 전체를 **다른 기능과 완전히 분리된 디렉터리**에 두는 이유는 하나다 — 나중에
 이 기능을 통째로 들어내야 할 때(§0의 출시 체크리스트) 다른 파일을 건드릴 일이 없게.
 
-### `#if DEBUG`로 못 막는 것 — 알아둘 점
+### 모든 빌드에서 동작한다 — DEBUG 전용이 아니다
 
-우리가 짠 Swift 코드는 `#if DEBUG`로 감싸면 Release 컴파일에서 완전히 빠진다
-(오답노트 샘플 데이터 시더 때 `strings`로 검증한 방식 그대로). 하지만 **`supabase-swift`
-패키지 자체**는 Xcode의 타깃-패키지 의존성이 빌드 구성(Debug/Release)별로 분리되지 않는
-구조라 Release 아카이브에도 정적으로 링크된다. 호출되는 코드가 없을 뿐 바이너리 크기는
-늘어난다는 뜻이다. 이걸 완전히 없애려면 출시 직전 `project.yml`에서 패키지 의존성 자체를
-지우고 재생성해야 한다 (§0 체크리스트).
+과거에는 이 기능 전체가 `#if DEBUG`로 감싸여 있었다. 지금은 TestFlight로 배포한 빌드에서도
+팀원끼리 실제로 써야 하므로 그 조건부 컴파일을 걷어냈고, `project.yml`의
+`configFiles`도 Debug/Release 둘 다 `Config/DevChatSecrets.xcconfig`를 보게 했다
+(Release만 못 보게 해뒀던 과거 설정이었다면 URL/키가 빈 문자열로 빌드된다).
+
+**`supabase-swift` 패키지 자체**는 여전히 Release 아카이브에 정적으로 링크된다 —
+Xcode의 타깃-패키지 의존성은 빌드 구성별로 분리되지 않는 구조다. 이건 원래도 그랬고
+(코드가 DEBUG 전용이던 시절에도 마찬가지) 지금은 그 링크된 코드가 실제로 호출까지
+된다는 점이 다르다. §0의 출시 체크리스트(정식 App Store 제출 시 이 기능을 다시 뺄지
+검토)는 여전히 유효하다.
 
 같은 이유로 **String Catalog(`Localizable.xcstrings`)의 키/번역 텍스트도 코드와는 별개다** —
 Xcode가 카탈로그를 `.strings` 리소스로 컴파일하는 과정은 어떤 Swift 파일이 그 키를
@@ -378,10 +421,13 @@ valid host`로 즉시 크래시했다 — 시뮬레이터에서 탭을 눌렀는
    통째로 지울 때 문제집 데이터에 영향이 없어야 하기 때문이다.
 2. **Project URL / anon key** — Settings → API에서 확인. `DevChatConfig`에 넣을 값.
 3. **§3의 SQL을 SQL Editor에서 실행** — 테이블/함수/정책 생성.
-4. **팀원 계정을 누가 셋업할지** — 1차는 각자 앱 안에서 가입 화면으로 만들면 된다
-   (§1에서 정한 대로 가입 자체는 막지 않으므로).
+4. **Authentication → Providers → Apple을 켠다** — Client ID(Service ID) 칸에 앱 번들 ID
+   (`com.studion.app`)를 넣는다. 이걸 안 켜두면 `signInWithIdToken`이 "Unsupported
+   provider" 에러로 실패한다. 대시보드 로그인이 필요해 코드로 대신할 수 없다.
+5. **팀원 계정** — 따로 셋업할 게 없다. 각자 앱의 팀 메신저에서 Apple 계정으로
+   로그인하면 그 자리에서 계정이 생긴다 (§2).
 
-이 네 가지가 준비되면 §6 구현(태스크 #30)에 들어간다.
+이 다섯 가지가 준비되면 §6 구현(태스크 #30)에 들어간다.
 
 ---
 

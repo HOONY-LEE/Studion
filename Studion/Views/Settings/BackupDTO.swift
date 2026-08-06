@@ -77,6 +77,15 @@ struct BackupDocument: Codable {
         var leitnerBoxIndex: Int
         var nextReviewDate: Date
         var lastReviewedAt: Date?
+
+        // 지문/문제/선택지로 칸을 나누기 전에 만든 백업에는 아래 값이 없다.
+        // 옵셔널로 두어 옛 백업도 그대로 읽히게 한다 — 없으면 `userEditedText`에서 다시 나눈다.
+        var passageText: String?
+        var promptText: String?
+        var choices: [String]?
+        var explanation: String?
+        var isMultipleChoice: Bool?
+        var correctChoiceIndex: Int?
     }
 
     struct TimetableEntryDTO: Codable {
@@ -84,6 +93,10 @@ struct BackupDocument: Codable {
         var startTime: Date
         var endTime: Date
         var title: String
+        /// 이동수업 교실. 이 항목이 생기기 전 백업에는 없어 옵셔널이다.
+        var location: String?
+        /// 과목 색. 이 항목이 생기기 전 백업에는 없어 옵셔널이다.
+        var colorIndex: Int?
         var type: String
         var repeatsWeekly: Bool
         var createdAt: Date

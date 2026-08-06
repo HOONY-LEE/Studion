@@ -1,17 +1,18 @@
-#if DEBUG
 import Foundation
 import Supabase
 
 /// 개발자 탭의 로그인 상태. Sign in with Apple(`AppleSignInStore`)과는 완전히 별개의
 /// 세션이다 — 학생용 CloudKit 계정과 섞이지 않는다. → `docs/10-developer-chat.md` §2
+///
+/// 로그인은 Apple 계정 하나로만 한다. 이메일/비밀번호 가입을 따로 두면 같은 사람이
+/// 계정을 두 번 만들 수 있는데, Apple은 기기의 Apple ID에서 나온 고유 식별자로
+/// Supabase가 알아서 같은 계정을 찾아준다 — 회원가입이라는 별도 단계가 필요 없다.
 @MainActor
 @Observable
 final class DevChatAuthService {
     enum State {
         case loading
         case signedOut
-        /// 가입 직후 이메일 확인이 필요한 경우 (Supabase 프로젝트 설정에 따라 다르다).
-        case awaitingEmailConfirmation
         case signedIn(DevProfile)
     }
 
@@ -69,28 +70,32 @@ final class DevChatAuthService {
         }
     }
 
-    func signUp(email: String, password: String, displayName: String) async throws {
-        let response = try await client.auth.signUp(
-            email: email,
-            password: password,
-            data: ["display_name": .string(displayName)]
+    /// Apple 로그인 완료 후 호출한다.
+    ///
+    /// `fullName`은 애플이 **최초 인증에서만** 내려준다 — 이후 로그인은 항상 `nil`이다.
+    /// 그래서 값이 있을 때만 표시 이름을 덮어쓴다. 없으면 가입 트리거가 이메일 앞부분으로
+    /// 채워둔 이름이 그대로 남는데, 사용자가 나중에 원하면 직접 고칠 수 있다.
+    func signInWithApple(idToken: String, nonce: String, fullName: PersonNameComponents?) async throws {
+        let session = try await client.auth.signInWithIdToken(
+            credentials: OpenIDConnectCredentials(provider: .apple, idToken: idToken, nonce: nonce)
         )
-        if response.session == nil {
-            state = .awaitingEmailConfirmation
-        }
-    }
 
-    func signIn(email: String, password: String) async throws {
-        _ = try await client.auth.signIn(email: email, password: password)
+        if let displayName = Self.formattedName(fullName) {
+            try await client
+                .from("dev_profiles")
+                .update(["display_name": displayName])
+                .eq("id", value: session.user.id.uuidString)
+                .execute()
+        }
     }
 
     func signOut() async throws {
         try await client.auth.signOut()
     }
 
-    /// 이메일 확인 대기 화면에서 로그인 화면으로 되돌아간다.
-    func returnToSignIn() {
-        state = .signedOut
+    private static func formattedName(_ components: PersonNameComponents?) -> String? {
+        guard let components else { return nil }
+        let formatted = PersonNameComponentsFormatter.localizedString(from: components, style: .default).trimmed
+        return formatted.isEmpty ? nil : formatted
     }
 }
-#endif

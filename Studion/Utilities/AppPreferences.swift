@@ -60,4 +60,8 @@ enum PreferenceKey {
     static let planReminderHour = "preference.planReminderHour"
     static let planReminderMinute = "preference.planReminderMinute"
     static let reviewReminderEnabled = "preference.reviewReminderEnabled"
+    /// 학교 일과표(교시 시각·수업 길이·점심·교시 수)를 JSON 한 덩어리로 담는다.
+    /// 항목이 여러 개라 키를 하나씩 두지 않는다 — 항목을 늘려도 저장 코드가 그대로다.
+    /// → `SchoolPeriodSchedule`
+    static let periodSchedule = "preference.periodSchedule"
 }

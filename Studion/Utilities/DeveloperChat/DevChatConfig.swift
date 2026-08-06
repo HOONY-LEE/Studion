@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 
 /// 개발자 탭이 쓰는 Supabase 프로젝트 연결 정보.
@@ -25,4 +24,3 @@ enum DevChatConfig {
         supabaseURL != nil && supabaseAnonKey != nil
     }
 }
-#endif

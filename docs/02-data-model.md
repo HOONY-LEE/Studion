@@ -175,7 +175,13 @@ PlanItem         (독립)
 | 속성 | 타입 | 기본값 | 설명 |
 |---|---|---|---|
 | `ocrRawText` | `String` | `""` | OCR 원본. 보존용(수정하지 않음) |
-| `userEditedText` | `String` | `""` | 사용자가 확인·수정한 최종 텍스트. **표시에는 이 값을 쓴다** |
+| `userEditedText` | `String` | `""` | 지문·문제·선택지를 합친 통짜 텍스트. 목록 미리보기와 백업이 쓴다. 저장 시 아래 칸들로부터 다시 만든다 |
+| `passageText` | `String` | `""` | 문제 앞에 딸려오는 지문 |
+| `promptText` | `String` | `""` | 실제로 묻는 문장. **저장하려면 이 칸이 비어 있지 않아야 한다** |
+| `choices` | `[String]` | `[]` | 객관식 선택지. 서술형이면 빈 배열 |
+| `explanation` | `String` | `""` | 해설 메모 (선택) |
+| `isMultipleChoice` | `Bool` | `false` | 선택지가 2개 이상일 때만 참 |
+| `correctChoiceIndex` | `Int?` | nil | 사용자가 지정한 정답. **앱이 추정하지 않는다** |
 | `causeTagRaw` | `String` | `dontKnow` | 오답 원인 |
 | `englishSubcategoryRaw` | `String?` | nil | 영어 과목에서만 사용 |
 | `imageData` | `Data?` | nil | `@Attribute(.externalStorage)`. SwiftData가 파일로 분리 저장하고 CloudKit이 자산으로 동기화한다 |
@@ -187,6 +193,8 @@ PlanItem         (독립)
 | `mockExamSubject` | `MockExamSubjectRecord?` | nil | |
 
 **불변식**: `schoolSubject`와 `mockExamSubject` 중 정확히 하나만 non-nil. (스키마로 강제 못 하므로 생성 시점 코드에서 보장한다.)
+
+**칸 나누기**: OCR로 읽은 통짜 텍스트를 `OCRQuestionSplitter`가 지문/문제/선택지로 나눠 폼에 채운다. 나눔은 제안일 뿐이고 모든 칸은 손으로 고칠 수 있다. 칸을 나누기 전에 만든 옛 노트는 구조화 필드가 비어 있는데, 모델의 `content` 프로퍼티가 그럴 때 `userEditedText`를 그때그때 나눠 돌려준다 — 일괄 마이그레이션 없이 옛 노트도 새 화면에서 제대로 보이고, 사용자가 그 노트를 열어 저장하면 그때 정착된다.
 
 **Leitner 간격**: box 0→1일, 1→3일, 2→7일, 3→14일, 4→30일. 상세 → [03](03-domain-logic.md#3-스페이스드-리피티션).
 

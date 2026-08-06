@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 
 /// 대화 목록 오른쪽에 붙는 시각 표기. WorkChat iOS `ChatListView.timeText`와 같은 규칙이다 —
@@ -19,7 +18,12 @@ enum DevChatTimestamp {
 
     static func style(for date: Date, now: Date, calendar: Calendar) -> Style {
         if calendar.isDate(date, inSameDayAs: now) { return .time }
-        if calendar.isDateInYesterday(date) { return .yesterday }
+        // `isDateInYesterday`를 쓰지 않는다 — 그건 넘겨받은 `now`가 아니라 **실제 시계**를
+        // 기준으로 판단해서, 날짜가 바뀌면 같은 입력에 다른 답을 낸다.
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
+           calendar.isDate(date, inSameDayAs: yesterday) {
+            return .yesterday
+        }
         return .date
     }
 
@@ -36,4 +40,3 @@ enum DevChatTimestamp {
         }
     }
 }
-#endif

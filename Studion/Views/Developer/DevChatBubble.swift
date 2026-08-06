@@ -1,4 +1,3 @@
-#if DEBUG
 import SwiftUI
 
 /// 말풍선 모서리 — 꼬리 쪽 아래 모서리만 좁혀서(4pt) 꼬리를 표현한다.
@@ -47,4 +46,3 @@ func devChatBubbleForeground(isMine: Bool, isDeleted: Bool) -> Color {
     }
     .padding()
 }
-#endif

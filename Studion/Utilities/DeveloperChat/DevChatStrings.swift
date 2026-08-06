@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 
 /// 번역된 문자열을 **조립해야 하는** 자리에서 쓴다.
@@ -21,4 +20,3 @@ enum DevChatStrings {
         return localeBundle.localizedString(forKey: key, value: key, table: nil)
     }
 }
-#endif

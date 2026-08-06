@@ -32,6 +32,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                chatSection
                 syncSection
                 appearanceSection
                 academicSection
@@ -72,6 +73,23 @@ struct SettingsView: View {
                 Button("확인") { errorMessage = nil }
             } message: {
                 Text(errorMessage ?? "")
+            }
+        }
+    }
+
+    // MARK: - 팀 메신저
+
+    /// 팀끼리 쓰는 메신저 진입로. 다른 항목보다 눈에 잘 띄도록 맨 위에 둔다.
+    private var chatSection: some View {
+        Section {
+            NavigationLink {
+                DeveloperChatView()
+            } label: {
+                Label {
+                    Text(verbatim: "팀 메신저")
+                } icon: {
+                    Image(systemName: "message")
+                }
             }
         }
     }
@@ -240,18 +258,6 @@ struct SettingsView: View {
     /// String Catalog에 개발용 문자열이 섞여 들어가는 것을 막기 위함이다.
     private var developerSection: some View {
         Section {
-            // 팀 내부 메신저. 탭바에 두면 학생이 쓰는 기능처럼 보여서 설정 안으로 옮겼다.
-            // → docs/10-developer-chat.md
-            NavigationLink {
-                DeveloperChatView()
-            } label: {
-                Label {
-                    Text(verbatim: "팀 메신저")
-                } icon: {
-                    Image(systemName: "message")
-                }
-            }
-
             Button {
                 SampleDataSeeder.seedQuestionSets(into: context)
             } label: {

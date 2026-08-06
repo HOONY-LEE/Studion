@@ -1,4 +1,3 @@
-#if DEBUG
 import SwiftUI
 import Supabase
 
@@ -279,4 +278,3 @@ private struct PanWhenZoomed: ViewModifier {
         }
     }
 }
-#endif

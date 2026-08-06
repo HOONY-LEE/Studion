@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import Supabase
 
@@ -8,7 +7,8 @@ import Supabase
 @Observable
 final class DevChatRoomService {
     private(set) var rooms: [DevChatRoom] = []
-    private let client: SupabaseClient
+    /// 아바타 사진을 받으려면 화면에서도 클라이언트가 필요하다.
+    let client: SupabaseClient
 
     init(client: SupabaseClient) {
         self.client = client
@@ -137,4 +137,3 @@ final class DevChatRoomService {
             .execute()
     }
 }
-#endif

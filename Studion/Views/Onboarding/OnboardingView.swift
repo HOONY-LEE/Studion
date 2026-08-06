@@ -1,14 +1,15 @@
 import SwiftUI
 import SwiftData
+import AuthenticationServices
 
 /// 최초 실행 온보딩.
 ///
-/// **로그인 단계를 포함하지 않는다.** 동기화는 나중에 설정에서 선택할 일이고,
-/// 앱을 처음 켠 사람에게 먼저 물을 것이 아니다.
-///
-/// 모든 단계는 건너뛸 수 있으며, 건너뛴 값은 나중에 설정에서 채울 수 있다.
+/// **로그인을 강제하지 않는다.** 첫 단계에 Apple 로그인을 눈에 잘 보이게 두지만
+/// 건너뛸 수 있고, 건너뛰어도 다음 단계로 그냥 넘어간다 — 앱의 모든 기능은
+/// 로그인 없이도 로컬로 완전히 동작한다 (원칙: 로그인은 스위치가 아니라 선택).
 struct OnboardingView: View {
     @Environment(\.modelContext) private var context
+    @Environment(AppleSignInStore.self) private var signInStore
 
     @AppStorage(PreferenceKey.hasCompletedOnboarding) private var hasCompletedOnboarding = false
 
@@ -19,17 +20,20 @@ struct OnboardingView: View {
     @State private var gradeLevel = 1
     @State private var gradingSystem: GradingSystemType = .fiveTier
     @State private var isAddingTimetable = false
+    /// Apple 로그인 요청에 실어 보낸 값. 응답을 검증할 때 다시 쓴다 (→ `AppleSignInNonce`).
+    @State private var currentNonce: String?
 
-    private let lastStep = 3
+    private let lastStep = 4
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 TabView(selection: $step) {
-                    academicStep.tag(0)
-                    subjectStep.tag(1)
-                    timetableStep.tag(2)
-                    doneStep.tag(3)
+                    signInStep.tag(0)
+                    academicStep.tag(1)
+                    subjectStep.tag(2)
+                    timetableStep.tag(3)
+                    doneStep.tag(4)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .always))
 
@@ -46,6 +50,43 @@ struct OnboardingView: View {
     }
 
     // MARK: - 단계
+
+    private var signInStep: some View {
+        stepScaffold(
+            icon: "apple.logo",
+            title: signInStore.isSignedIn ? "연결됐어요" : "Apple 계정으로 시작할까요?",
+            message: signInStore.isSignedIn
+                ? "기기를 바꿔도 데이터를 이어서 쓸 수 있어요."
+                : "로그인하면 같은 iCloud 계정을 쓰는 다른 기기에서도 이어서 쓸 수 있어요. 지금 건너뛰어도 모든 기능은 그대로 동작합니다."
+        ) {
+            #if CLOUD_SYNC
+            if signInStore.isSignedIn {
+                Label("Apple 계정 연결됨", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(Color("GoalAchieved"))
+            } else {
+                SignInWithAppleButton(.signIn) { request in
+                    let nonce = AppleSignInNonce.random()
+                    currentNonce = nonce
+                    // 이름은 앱을 통틀어 애플이 딱 한 번만 내려준다. 온보딩이 그 첫 자리이므로
+                    // 여기서 받아 팀 메신저 프로필까지 함께 채운다 — 나중에 팀 메신저를 열 때
+                    // 또 물어보지 않아도 되게.
+                    request.requestedScopes = [.fullName, .email]
+                    request.nonce = AppleSignInNonce.sha256(nonce)
+                } onCompletion: { result in
+                    handleAppleSignIn(result)
+                }
+                .signInWithAppleButtonStyle(.black)
+                .frame(width: 280, height: 44)
+            }
+            #else
+            Text("이 빌드에는 기기 간 동기화가 포함되어 있지 않아요. 데이터는 이 기기에 저장됩니다.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            #endif
+        }
+    }
 
     private var academicStep: some View {
         stepScaffold(
@@ -157,5 +198,26 @@ struct OnboardingView: View {
         profile.gradingSystemType = gradingSystem
 
         hasCompletedOnboarding = true
+    }
+
+    /// Apple 로그인 결과를 두 곳에 반영한다: iCloud 연결 표시(`AppleSignInStore`)와,
+    /// 되면 팀 메신저 계정(Supabase)까지. 팀 메신저 쪽은 실패해도 조용히 넘어간다 —
+    /// 이 화면의 주된 목적은 iCloud 연결이고, 팀 메신저는 되면 좋은 덤이다. 어차피
+    /// 팀 메신저를 실제로 열면 거기서 다시 로그인할 수 있다(→ `DevChatAuthView`).
+    private func handleAppleSignIn(_ result: Result<ASAuthorization, Error>) {
+        guard case .success(let authorization) = result else { return }
+
+        signInStore.handleAuthorization(authorization)
+
+        guard let nonce = currentNonce,
+              let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let tokenData = credential.identityToken,
+              let idToken = String(data: tokenData, encoding: .utf8),
+              let devChatAuth = DevChatAuthService(client: DevChatClient.shared)
+        else { return }
+
+        Task {
+            try? await devChatAuth.signInWithApple(idToken: idToken, nonce: nonce, fullName: credential.fullName)
+        }
     }
 }

@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import Supabase
 
@@ -12,4 +11,3 @@ enum DevChatClient {
         return SupabaseClient(supabaseURL: url, supabaseKey: key)
     }()
 }
-#endif

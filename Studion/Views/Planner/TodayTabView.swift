@@ -6,7 +6,7 @@ import SwiftUI
 /// Gradin은 + 를 탭바에서 분리된 탭으로 두는데, 그 API(`Tab(role: .search)`)는 iOS 18부터라
 /// 이 앱(iOS 17)에서는 화면 안 제목 줄 오른쪽에 둔다.
 ///
-/// 시간표 관리 진입로는 여기 두지 않는다 — 학습 탭으로 옮겼다 (→ `LearnView`).
+/// 시간표 관리 진입로는 여기 두지 않는다 — 기록 탭으로 옮겼다 (→ `GradesView`).
 struct TodayTabView: View {
     @Environment(\.calendar) private var calendar
 

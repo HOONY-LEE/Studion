@@ -1,6 +1,9 @@
 import SwiftUI
 
-/// 성적 탭. 최상단 세그먼트로 내신/모의고사를 전환한다.
+/// 기록 탭. 최상단 세그먼트로 내신/모의고사를 전환한다.
+///
+/// 시간표 진입로가 여기 있다 — 시간표도 "학교 생활의 기록"이고, 성적·오답노트와 같은
+/// 과목 단위로 묶인다. 오답노트를 공부하는 곳은 반대로 학습 탭이다 (→ `LearnView`).
 struct GradesView: View {
     private enum Tab: Hashable {
         case school, mockExam
@@ -33,9 +36,9 @@ struct GradesView: View {
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
-                        ReviewSessionView()
+                        TimetableGridView()
                     } label: {
-                        Label("복습", systemImage: "rectangle.on.rectangle.angled")
+                        Label("시간표", systemImage: "calendar.badge.clock")
                     }
                 }
             }

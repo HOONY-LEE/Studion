@@ -1,7 +1,10 @@
 import SwiftUI
 import SwiftData
 
-/// 학습 탭. 문제 모음집 목록.
+/// 학습 탭. 문제 모음집 목록 + 오답노트 진입로.
+///
+/// 오답노트는 과목별 기록이기도 하지만 **공부하는 곳은 여기**라 진입로를 이 탭에 둔다.
+/// 시간표는 반대로 기록 탭에 있다 (→ `GradesView`).
 ///
 /// 명세: `docs/08-question-bank.md`
 struct LearnView: View {
@@ -12,8 +15,6 @@ struct LearnView: View {
 
     @State private var isAddingSet = false
     @State private var setToEdit: QuestionSet?
-    /// 원래 오늘 할 일 탭에 있던 진입로 — 시간표도 학습 계획의 일부라 이쪽으로 옮겼다.
-    @State private var isShowingTimetable = false
 
     var body: some View {
         NavigationStack {
@@ -46,12 +47,12 @@ struct LearnView: View {
             .navigationTitle("학습")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        isShowingTimetable = true
+                    NavigationLink {
+                        WrongAnswerHubView()
                     } label: {
-                        Image(systemName: "calendar.badge.clock")
+                        Image(systemName: "doc.text.image")
                     }
-                    .accessibilityLabel("시간표 관리")
+                    .accessibilityLabel("오답노트")
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -66,16 +67,6 @@ struct LearnView: View {
             }
             .sheet(item: $setToEdit) { set in
                 QuestionSetFormView(editing: set)
-            }
-            .sheet(isPresented: $isShowingTimetable) {
-                NavigationStack {
-                    TimetableListView()
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button("닫기") { isShowingTimetable = false }
-                            }
-                        }
-                }
             }
         }
     }

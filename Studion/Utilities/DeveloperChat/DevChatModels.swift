@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 
 /// `docs/10-developer-chat.md` §3의 테이블과 1:1 대응한다.
@@ -7,12 +6,17 @@ struct DevProfile: Codable, Identifiable, Hashable {
     var displayName: String
     /// `006_add_profile_email.sql` 이전에 만든 서버에는 이 컬럼이 없을 수 있어 옵셔널로 둔다.
     var email: String?
+    /// 프로필 사진의 Storage 경로 (`dev-avatars` 버킷 안 `<user_id>/<uuid>.jpg`).
+    /// 사진을 안 올렸으면 nil이고, 그때는 이름 첫 글자 아바타를 쓴다.
+    /// → `009_profile_avatar.sql`
+    var avatarPath: String?
     var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
         case id
         case displayName = "display_name"
         case email
+        case avatarPath = "avatar_path"
         case createdAt = "created_at"
     }
 }
@@ -142,4 +146,3 @@ extension Array where Element == DevReaction {
         }
     }
 }
-#endif

@@ -39,6 +39,9 @@ targets:
       properties:
         UILaunchScreen: {}
         CFBundleDisplayName: Studion
+        # TestFlight는 같은 버전(1.0)에 빌드 번호가 겹치면 재업로드를 막는다 — 올릴 때마다 올린다.
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "7"
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         UISupportedInterfaceOrientations:
@@ -49,9 +52,9 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        # 오답노트용. 사진은 기기 안에서만 분석되며 외부로 전송되지 않는다.
-        NSCameraUsageDescription: 틀린 문제를 찍어 오답노트를 만들 때 사용합니다. 사진은 기기 안에서만 분석되며 외부로 전송되지 않습니다.
-        NSPhotoLibraryUsageDescription: 저장된 문제 사진으로 오답노트를 만들 때 사용합니다. 사진은 기기 안에서만 분석되며 외부로 전송되지 않습니다.
+        # 오답노트·시간표 사진용. 사진은 기기 안에서만 분석되며 외부로 전송되지 않는다.
+        NSCameraUsageDescription: 틀린 문제나 시간표를 찍어 오답노트·시간표를 만들 때 사용합니다. 사진은 기기 안에서만 분석되며 외부로 전송되지 않습니다.
+        NSPhotoLibraryUsageDescription: 저장된 문제·시간표 사진으로 오답노트·시간표를 만들 때 사용합니다. 사진은 기기 안에서만 분석되며 외부로 전송되지 않습니다.
         # 플래너 월간 보기용. iOS 17부터 읽기 전용/전체 접근 키가 나뉘는데, 앱에서 일정을
         # 추가·수정까지 하므로 전체 접근 키를 쓴다. 일정은 기기의 캘린더에만 오가며
         # (iCloud·Google 등 계정 동기화는 iOS가 담당) 개발자 서버로 보내지 않는다.
@@ -59,7 +62,7 @@ targets:
         # CloudKit 원격 변경 수신용
         UIBackgroundModes:
           - remote-notification
-        # 개발자 탭(Debug 전용)용 Supabase 연결 정보. 호스트는 Config/DevChatSecrets*.xcconfig에서 온다.
+        # 팀 메신저(설정 맨 위)용 Supabase 연결 정보. 호스트는 Config/DevChatSecrets*.xcconfig에서 온다.
         # "https://"는 여기서 붙인다 — xcconfig 쪽에 두면 `//`가 주석으로 잘린다 (겪은 버그, docs/10 참고).
         DevChatSupabaseURL: https://$(DEV_CHAT_SUPABASE_HOST)
         DevChatSupabaseAnonKey: $(DEV_CHAT_SUPABASE_ANON_KEY)
@@ -73,7 +76,8 @@ targets:
         SUPPORTS_MACCATALYST: false
         SWIFT_EMIT_LOC_STRINGS: YES
         # 실기기 빌드용 서명. 시뮬레이터는 서명 없이도 동작한다.
-        # softium(무료 개인 팀) — 기존에 쓰던 팀과 동일하게 맞춘다.
+        # SUNGHOON LEE — iCloud·Sign in with Apple 프로파일이 정상 발급되는 유료 멤버십 팀
+        # (TestFlight 업로드로 실제 확인함 — 예전 주석은 이 팀을 무료 개인 팀으로 잘못 적어뒀었다).
         DEVELOPMENT_TEAM: TXP6GR8NMT
         CODE_SIGN_STYLE: Automatic
       configs:
@@ -86,9 +90,9 @@ targets:
           CODE_SIGN_ENTITLEMENTS: Config/Studion.entitlements
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: CLOUD_SYNC
     configFiles:
-      # Release는 이 xcconfig를 안 봐서 DEV_CHAT_* 변수가 빈 문자열로 남는다 —
-      # 어차피 Release 코드에서는 참조하지 않는다(전부 #if DEBUG).
+      # 팀 메신저가 Release(TestFlight 포함)에서도 열리므로 두 구성 다 이 xcconfig를 본다.
       Debug: Config/DevChatSecrets.xcconfig
+      Release: Config/DevChatSecrets.xcconfig
 
   StudionTests:
     type: bundle.unit-test

@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 
 /// 메시지 목록을 화면 행으로 묶는 계산. SwiftUI를 import하지 않는다 — 뷰가 "여기에 날짜를
@@ -118,4 +117,3 @@ enum DevChatLayout {
         message.hasImage && message.replyToId == nil
     }
 }
-#endif

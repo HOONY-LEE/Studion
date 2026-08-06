@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import Supabase
 
@@ -418,4 +417,3 @@ final class DevChatMessageService {
         return decoder
     }()
 }
-#endif

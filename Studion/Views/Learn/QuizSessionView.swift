@@ -8,6 +8,9 @@ import SwiftData
 struct QuizSessionView: View {
     let questionSet: QuestionSet
 
+    /// 객관식 물음의 글자 크기. 단어 하나짜리 카드가 한눈에 들어와야 한다.
+    @ScaledMetric(relativeTo: .largeTitle) private var multipleChoicePromptSize: CGFloat = 36
+
     /// 이번 세션에서 풀 문제. 미완성 카드는 제외한다.
     @State private var queue: [Question] = []
     @State private var currentIndex = 0
@@ -110,9 +113,7 @@ struct QuizSessionView: View {
                             .accessibilityLabel("문제 이미지")
                     }
 
-                    Text(verbatim: question.prompt)
-                        .font(.title3)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    promptText(question)
 
                     if !question.hint.isEmpty, !isRevealed {
                         Label(question.hint, systemImage: "lightbulb")
@@ -137,30 +138,7 @@ struct QuizSessionView: View {
     private func answerArea(_ question: Question) -> some View {
         switch question.type {
         case .multipleChoice:
-            VStack(spacing: 8) {
-                ForEach(Array(question.choices.enumerated()), id: \.offset) { index, choice in
-                    Button {
-                        guard !isRevealed else { return }
-                        selectedChoiceIndex = index
-                    } label: {
-                        HStack(alignment: .top, spacing: 8) {
-                            Text(verbatim: "\(index + 1)")
-                                .fontWeight(.semibold)
-                            Text(verbatim: choice)
-                                .multilineTextAlignment(.leading)
-                            Spacer(minLength: 0)
-                            choiceIcon(index: index, question: question)
-                        }
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            choiceBackground(index: index, question: question),
-                            in: RoundedRectangle(cornerRadius: 8)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+            choiceGrid(question)
 
         case .flashcard:
             // 플래시카드는 `flashcardLayout`이 카드로 그린다. 여기로 오지 않는다.
@@ -175,28 +153,50 @@ struct QuizSessionView: View {
         }
     }
 
+    /// 물음 문장. 객관식은 단어 하나짜리 카드가 많아서 크게, 가운데로 둔다 —
+    /// 서술형·빈칸 채우기는 문장이 길어질 수 있어 기존처럼 왼쪽 정렬 본문 크기를 쓴다.
     @ViewBuilder
-    private func choiceIcon(index: Int, question: Question) -> some View {
-        if isRevealed, let correct = question.correctChoiceIndex {
-            if index == correct {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color("GoalAchieved"))
-            } else if selectedChoiceIndex == index {
-                // 오답을 빨간색으로 강조하지 않는다.
-                Image(systemName: "circle")
-                    .foregroundStyle(.secondary)
-            }
-        } else if selectedChoiceIndex == index {
-            Image(systemName: "largecircle.fill.circle")
-                .foregroundStyle(.tint)
+    private func promptText(_ question: Question) -> some View {
+        if question.type == .multipleChoice {
+            Text(verbatim: question.prompt)
+                .font(.system(size: multipleChoicePromptSize, weight: .bold, design: .rounded))
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .minimumScaleFactor(0.5)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+        } else {
+            Text(verbatim: question.prompt)
+                .font(.title3)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private func choiceBackground(index: Int, question: Question) -> Color {
-        if isRevealed, let correct = question.correctChoiceIndex, index == correct {
-            return Color("GoalAchieved").opacity(0.15)
+    /// 선택지 카드를 2열로 놓는다. 선택지가 홀수 개면 마지막 카드가 자연히 한 줄을 차지한다.
+    private func choiceGrid(_ question: Question) -> some View {
+        VStack(spacing: 12) {
+            ForEach(choiceRows(question.choices.count), id: \.self) { row in
+                HStack(spacing: 12) {
+                    ForEach(row, id: \.self) { index in
+                        ChoiceCard(
+                            index: index,
+                            text: question.choices[index],
+                            isSelected: selectedChoiceIndex == index,
+                            isCorrect: isRevealed ? question.correctChoiceIndex == index : nil
+                        ) {
+                            guard !isRevealed else { return }
+                            selectedChoiceIndex = index
+                        }
+                    }
+                }
+            }
         }
-        return selectedChoiceIndex == index ? Color.secondary.opacity(0.12) : Color.secondary.opacity(0.06)
+    }
+
+    private func choiceRows(_ count: Int) -> [[Int]] {
+        stride(from: 0, to: count, by: 2).map { start in
+            Array(start..<min(start + 2, count))
+        }
     }
 
     @ViewBuilder

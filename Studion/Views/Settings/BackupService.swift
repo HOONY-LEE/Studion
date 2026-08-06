@@ -52,6 +52,8 @@ enum BackupService {
                     startTime: $0.startTime,
                     endTime: $0.endTime,
                     title: $0.title,
+                    location: $0.location,
+                    colorIndex: $0.colorIndex,
                     type: $0.typeRaw,
                     repeatsWeekly: $0.repeatsWeekly,
                     createdAt: $0.createdAt
@@ -111,7 +113,13 @@ enum BackupService {
             createdAt: note.createdAt,
             leitnerBoxIndex: note.leitnerBoxIndex,
             nextReviewDate: note.nextReviewDate,
-            lastReviewedAt: note.lastReviewedAt
+            lastReviewedAt: note.lastReviewedAt,
+            passageText: note.passageText,
+            promptText: note.promptText,
+            choices: note.choices,
+            explanation: note.explanation,
+            isMultipleChoice: note.isMultipleChoice,
+            correctChoiceIndex: note.correctChoiceIndex
         )
     }
 
@@ -202,7 +210,9 @@ enum BackupService {
                 startTime: dto.startTime,
                 endTime: dto.endTime,
                 title: dto.title,
+                location: dto.location ?? "",
                 type: TimetableEntryType(rawValue: dto.type) ?? .school,
+                colorIndex: dto.colorIndex ?? 0,
                 repeatsWeekly: dto.repeatsWeekly
             )
             entry.createdAt = dto.createdAt
@@ -230,6 +240,13 @@ enum BackupService {
         note.leitnerBoxIndex = dto.leitnerBoxIndex
         note.nextReviewDate = dto.nextReviewDate
         note.lastReviewedAt = dto.lastReviewedAt
+        note.passageText = dto.passageText ?? ""
+        note.promptText = dto.promptText ?? ""
+        note.choices = dto.choices ?? []
+        note.explanation = dto.explanation ?? ""
+        // 옛 백업에는 이 값이 없다. 비워두면 `content`가 `userEditedText`에서 다시 나눠 읽는다.
+        note.isMultipleChoice = dto.isMultipleChoice ?? false
+        note.correctChoiceIndex = dto.correctChoiceIndex
         return note
     }
 

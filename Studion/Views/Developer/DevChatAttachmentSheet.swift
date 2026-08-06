@@ -1,4 +1,3 @@
-#if DEBUG
 import SwiftUI
 import Photos
 import UIKit
@@ -285,4 +284,3 @@ struct DevChatCameraPicker: UIViewControllerRepresentable {
         }
     }
 }
-#endif

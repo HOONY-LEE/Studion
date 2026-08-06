@@ -1,4 +1,3 @@
-#if DEBUG
 import SwiftUI
 import PhotosUI
 import Supabase
@@ -22,8 +21,11 @@ struct DevChatRoomView: View {
     @State private var draft = ""
     @State private var sending = false
     @State private var errorMessage: String?
-    /// 그룹 대화에서 말풍선 위에 보낸 사람 이름을 붙이기 위한 이름표.
-    @State private var memberNames: [UUID: String] = [:]
+    /// 방 멤버 프로필. 이름표뿐 아니라 **프로필 사진**도 여기서 온다 —
+    /// 이름만 들고 있으면 말풍선 옆 아바타가 영영 첫 글자로만 보인다.
+    @State private var members: [UUID: DevProfile] = [:]
+    /// 아바타를 눌러 연 프로필. 아래에서 올라온다.
+    @State private var memberSheetTarget: DevProfile?
 
     @State private var replyingTo: DevMessage?
     @State private var editingMessage: DevMessage?
@@ -74,10 +76,18 @@ struct DevChatRoomView: View {
             .sheet(isPresented: reactionSheetBinding) {
                 DevChatReactionDetailSheet(
                     summaries: reactionDetailTarget.flatMap { messageService?.reactions[$0.id] } ?? [],
-                    names: memberNames,
+                    members: members,
+                    client: client,
                     myID: profile.id
                 )
                 .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(item: $memberSheetTarget) { member in
+                // 내 말풍선에는 아바타가 없으므로 여기 오는 건 언제나 상대방이다.
+                DevChatMemberSheet(member: member, client: client)
+                // 이름·사진만 있는 화면이라 medium이면 아래가 텅 빈다.
+                .presentationDetents([.height(300), .medium])
                 .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showAttachSheet, onDismiss: presentPendingPicker) {
@@ -259,7 +269,22 @@ struct DevChatRoomView: View {
         } else {
             HStack(alignment: .top, spacing: 8) {
                 if row.showsSender {
-                    DevChatAvatar(displayName: senderName(row.first), diameter: 34)
+                    let sender = members[row.first.senderId]
+                    Button {
+                        memberSheetTarget = sender
+                    } label: {
+                        DevChatAvatar(
+                            displayName: senderName(row.first),
+                            diameter: 34,
+                            avatarPath: sender?.avatarPath,
+                            client: client
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    // 아직 멤버를 못 받아왔으면 열 프로필이 없다 — 누르면 아무 일도 안 하는
+                    // 버튼보다 눌리지 않는 편이 낫다.
+                    .disabled(sender == nil)
+                    .accessibilityLabel("\(senderName(row.first)) 프로필 보기")
                 } else {
                     Color.clear.frame(width: 34, height: 1)
                 }
@@ -599,7 +624,7 @@ struct DevChatRoomView: View {
         if message.senderId == profile.id {
             return DevChatStrings.localized("나", locale: locale)
         }
-        return memberNames[message.senderId] ?? title
+        return members[message.senderId]?.displayName ?? title
     }
 
     /// 인용에 보여줄 한 줄. 사진·파일은 본문이 없으니 종류를 대신 보여준다.
@@ -630,12 +655,10 @@ struct DevChatRoomView: View {
         }
 
         // 이름표는 1:1에서도 필요하다 — 답장 인용에 상대 이름을 보여줘야 한다.
-        if memberNames.isEmpty {
+        if members.isEmpty {
             let roomService = DevChatRoomService(client: client)
-            if let members = try? await roomService.members(of: room.id) {
-                memberNames = Dictionary(
-                    uniqueKeysWithValues: members.map { ($0.id, $0.displayName) }
-                )
+            if let loaded = try? await roomService.members(of: room.id) {
+                members = Dictionary(uniqueKeysWithValues: loaded.map { ($0.id, $0) })
             }
         }
 
@@ -753,4 +776,3 @@ struct DevChatDateDivider: View {
             .frame(maxWidth: .infinity)
     }
 }
-#endif

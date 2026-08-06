@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import Supabase
 
@@ -38,4 +37,3 @@ final class DevChatStorage {
         return data
     }
 }
-#endif

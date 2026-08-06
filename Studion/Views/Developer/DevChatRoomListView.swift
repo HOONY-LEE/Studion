@@ -1,11 +1,11 @@
-#if DEBUG
 import SwiftUI
 
 /// 대화 목록. WorkChat iOS `ChatListView`의 행 구성을 따른다 — 아바타, 제목(+그룹 인원수),
 /// 마지막 메시지 한 줄, 오른쪽 위에 시각과 그 아래 안읽음 배지.
 struct DevChatRoomListView: View {
     let authService: DevChatAuthService
-    let profile: DevProfile
+    /// 내 프로필. 여기서 이름·사진을 바꾸면 화면이 바로 반영되도록 상태로 들고 있다.
+    @State var profile: DevProfile
 
     @Environment(\.locale) private var locale
     @Environment(\.calendar) private var calendar
@@ -16,8 +16,11 @@ struct DevChatRoomListView: View {
     @State private var memberCounts: [UUID: Int] = [:]
     @State private var lastMessages: [UUID: DevMessage] = [:]
     @State private var unreadCounts: [UUID: Int] = [:]
+    /// 1:1 방 상대의 프로필. 아바타 사진을 띄우려면 경로가 필요하다.
+    @State private var resolvedAvatars: [UUID: String] = [:]
     @State private var searchText = ""
     @State private var isShowingUserSearch = false
+    @State private var isShowingProfile = false
     @State private var errorMessage: String?
 
     private var rooms: [DevChatRoom] {
@@ -68,9 +71,23 @@ struct DevChatRoomListView: View {
         }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button("로그아웃") {
-                    Task { try? await authService.signOut() }
+                Menu {
+                    Button("내 프로필", systemImage: "person.crop.circle") {
+                        isShowingProfile = true
+                    }
+                    Button("로그아웃", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
+                        Task { try? await authService.signOut() }
+                    }
+                } label: {
+                    // 내 사진을 그대로 버튼으로 쓴다 — 지금 누구로 로그인했는지가 한눈에 보인다.
+                    DevChatAvatar(
+                        displayName: profile.displayName,
+                        diameter: 30,
+                        avatarPath: profile.avatarPath,
+                        client: authService.client
+                    )
                 }
+                .accessibilityLabel("내 프로필 및 로그아웃")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -79,6 +96,11 @@ struct DevChatRoomListView: View {
                     Image(systemName: "square.and.pencil")
                 }
                 .accessibilityLabel("새 대화")
+            }
+        }
+        .sheet(isPresented: $isShowingProfile) {
+            DevChatProfileView(client: authService.client, profile: profile) { updated in
+                profile = updated
             }
         }
         .sheet(isPresented: $isShowingUserSearch) {
@@ -113,7 +135,10 @@ struct DevChatRoomListView: View {
             DevChatAvatar(
                 displayName: title(for: room),
                 diameter: 50,
-                isGroup: room.isGroup
+                isGroup: room.isGroup,
+                // 그룹은 사람 둘 아이콘을 그대로 쓴다 — 여러 명 중 누구 사진을 쓸지 정할 수 없다.
+                avatarPath: room.isGroup ? nil : resolvedAvatars[room.id],
+                client: authService.client
             )
 
             VStack(alignment: .leading, spacing: 3) {
@@ -220,8 +245,9 @@ struct DevChatRoomListView: View {
                 let other = members.first { $0.id != profile.id }
                 resolvedTitles[room.id] = other?.displayName
                     ?? DevChatStrings.localized("대화", locale: locale)
+                // 이름과 사진은 같은 조회에서 함께 나온다 — 사진 때문에 한 번 더 부르지 않는다.
+                resolvedAvatars[room.id] = other?.avatarPath
             }
         }
     }
 }
-#endif
